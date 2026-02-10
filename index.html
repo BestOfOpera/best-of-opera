@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Best of Opera — APP1 Curadoria</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#08080f; color:#e8e8f0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; min-height:100vh; }
+a { text-decoration:none; }
+
+/* Header */
+.header { padding:10px 18px; border-bottom:1px solid #1a1a2e; background:#08080fee; position:sticky; top:0; z-index:100; display:flex; justify-content:space-between; align-items:center; backdrop-filter:blur(8px); }
+.logo { display:flex; align-items:center; gap:10px; }
+.logo-icon { width:30px; height:30px; border-radius:7px; background:linear-gradient(135deg,#C9A84C,#8B6914); display:flex; align-items:center; justify-content:center; font-weight:700; color:#000; font-size:14px; }
+.logo-text { color:#C9A84C; font-size:13px; font-weight:700; }
+.logo-sub { color:#444; font-size:9px; letter-spacing:0.6px; }
+.status { padding:5px 8px; border-radius:7px; font-size:10px; display:flex; align-items:center; gap:3px; }
+.status.ok { border:1px solid #22c55e20; color:#22c55e; }
+.status.err { border:1px solid #ef444420; color:#ef4444; }
+
+/* Hero */
+.hero { text-align:center; padding:28px 0 16px; }
+.hero h1 { font-size:22px; font-weight:700; background:linear-gradient(135deg,#C9A84C,#F0C75E); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:4px; }
+.hero p { color:#444; font-size:12px; }
+
+/* Search */
+.search-bar { max-width:560px; margin:0 auto 16px; display:flex; gap:6px; padding:0 18px; }
+.search-bar input { flex:1; padding:10px 14px; border-radius:10px; border:1px solid #1a1a2e; background:#0f0f1a; color:#e8e8f0; font-size:13px; outline:none; }
+.search-bar input:focus { border-color:#C9A84C40; }
+.btn-search { padding:10px 20px; border-radius:10px; border:none; background:linear-gradient(135deg,#C9A84C,#8B6914); color:#000; font-weight:700; font-size:13px; cursor:pointer; }
+.btn-search:hover { opacity:0.9; }
+.btn-search:disabled { opacity:0.5; }
+.btn-rank { padding:10px 14px; border-radius:10px; border:1px solid #C9A84C25; background:#C9A84C08; color:#C9A84C; font-size:12px; cursor:pointer; white-space:nowrap; }
+
+/* Categories */
+.cats { max-width:750px; margin:0 auto 20px; display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:6px; padding:0 18px; }
+.cat-btn { padding:8px 10px; border-radius:8px; cursor:pointer; text-align:left; transition:all 0.2s; border:1px solid transparent; }
+.cat-btn:hover { transform:translateY(-1px); }
+.cat-btn .icon { font-size:14px; }
+.cat-btn .label { font-size:12px; font-weight:600; margin-left:5px; }
+.cat-btn .desc { color:#555; font-size:9px; margin-top:2px; }
+
+/* Status msg */
+.msg { text-align:center; margin-bottom:10px; font-size:12px; padding:0 18px; }
+.msg.ok { color:#22c55e; }
+.msg.loading { color:#C9A84C; }
+.msg.error { color:#ef4444; }
+
+/* Loading */
+.loader { text-align:center; padding:20px; }
+.loader-bar { width:200px; height:3px; border-radius:2px; background:#1a1a2e; margin:8px auto; overflow:hidden; }
+.loader-fill { width:60%; height:100%; background:linear-gradient(90deg,#C9A84C,#F0C75E); border-radius:2px; animation:slide 1.2s ease-in-out infinite; }
+@keyframes slide { 0%{transform:translateX(-100%)} 50%{transform:translateX(80%)} 100%{transform:translateX(-100%)} }
+
+/* Results header */
+.results-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:4px; padding:0 18px; max-width:1050px; margin:0 auto 10px; }
+.results-info { color:#555; font-size:11px; }
+.toggle-posted { display:flex; align-items:center; gap:5px; padding:3px 9px; border-radius:6px; cursor:pointer; font-size:10px; border:1px solid; background:transparent; }
+
+/* Grid */
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; padding:0 18px 40px; max-width:1050px; margin:0 auto; }
+
+/* Card */
+.card { background:#0d0d18; border-radius:10px; border:1px solid #1a1a2e; cursor:pointer; overflow:hidden; transition:all 0.2s; position:relative; }
+.card:hover { border-color:#C9A84C40; transform:translateY(-2px); }
+.card.posted { opacity:0.45; }
+.card-thumb { height:120px; background:#0a0a16; position:relative; overflow:hidden; }
+.card-thumb img { width:100%; height:100%; object-fit:cover; }
+.card-thumb .placeholder { font-size:36px; opacity:0.15; display:flex; align-items:center; justify-content:center; height:100%; }
+.card-dur { position:absolute; bottom:4px; right:4px; background:#000a; padding:1px 5px; border-radius:3px; color:#fff; font-size:10px; }
+.posted-badge { position:absolute; inset:0; background:#ef444430; display:flex; align-items:center; justify-content:center; }
+.posted-badge span { background:#ef4444; color:#fff; font-size:9px; font-weight:700; padding:2px 8px; border-radius:4px; transform:rotate(-8deg); }
+.card-body { padding:8px 10px; }
+.card-artist { color:#e8e8f0; font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.card-song { color:#888; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom:4px; }
+.card-meta { display:flex; gap:6px; color:#555; font-size:10px; margin-bottom:6px; flex-wrap:wrap; }
+.card-meta .hd { color:#22c55e; }
+.card-yt { display:inline-flex; align-items:center; gap:4px; color:#ef4444; font-size:10px; padding:3px 7px; background:#ef444408; border-radius:5px; border:1px solid #ef444415; }
+.card-yt:hover { background:#ef444418; }
+
+/* Score ring */
+.ring { position:absolute; top:4px; right:4px; }
+
+/* Modal overlay */
+.modal-overlay { position:fixed; inset:0; background:#000c; z-index:200; display:flex; align-items:center; justify-content:center; padding:16px; }
+.modal { background:#0d0d18; border-radius:14px; border:1px solid #1a1a2e; max-width:520px; width:100%; max-height:85vh; overflow:auto; padding:20px; }
+.modal-header { display:flex; justify-content:space-between; align-items:start; margin-bottom:12px; }
+.modal-artist { color:#888; font-size:11px; }
+.modal-song { color:#e8e8f0; font-size:17px; font-weight:600; }
+.modal-section { background:#08080f; border-radius:8px; padding:10px; margin-bottom:12px; }
+.modal-section-title { color:#C9A84C; font-size:11px; font-weight:600; margin-bottom:6px; }
+.modal-grid { display:grid; gap:6px; }
+.modal-grid-2 { grid-template-columns:1fr 1fr; }
+.modal-grid-3 { grid-template-columns:1fr 1fr 1fr; }
+.modal-stat { background:#0d0d18; padding:6px; border-radius:6px; }
+.modal-stat-label { color:#555; font-size:9px; }
+.modal-stat-value { color:#e8e8f0; font-size:11px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.modal-stat-big { font-size:16px; font-weight:700; }
+.modal-url { display:flex; gap:4px; margin-bottom:12px; }
+.modal-url input { flex:1; padding:7px 8px; border-radius:6px; border:1px solid #222; background:#0f0f1a; color:#ef4444; font-size:10px; font-family:monospace; }
+.modal-url a { padding:7px 10px; border-radius:6px; background:#ef444415; border:1px solid #ef444430; color:#ef4444; font-size:11px; font-weight:600; }
+.modal-btns { display:flex; gap:6px; }
+.btn-download { flex:1; padding:10px; border-radius:8px; border:none; background:linear-gradient(135deg,#C9A84C,#8B6914); color:#000; font-weight:700; font-size:13px; cursor:pointer; }
+.btn-close { padding:10px 20px; border-radius:8px; border:1px solid #222; background:transparent; color:#888; font-size:12px; cursor:pointer; }
+
+/* Empty */
+.empty { text-align:center; padding:40px 0; color:#2a2a3e; }
+.empty-icon { font-size:38px; margin-bottom:10px; }
+.empty-text { font-size:14px; color:#444; }
+.btn-start { margin-top:12px; padding:10px 22px; border-radius:9px; border:1px solid #C9A84C30; background:#C9A84C10; color:#C9A84C; font-size:13px; font-weight:600; cursor:pointer; }
+
+/* Guia panel */
+.guia-panel { position:fixed; top:0; right:0; width:280px; height:100%; background:#0d0d18; border-left:1px solid #C9A84C20; z-index:150; display:flex; flex-direction:column; }
+.guia-header { padding:12px 10px 6px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1a1a2e; }
+.guia-tabs { display:flex; border-bottom:1px solid #1a1a2e; }
+.guia-tab { flex:1; padding:7px; border:none; cursor:pointer; background:transparent; color:#444; font-size:11px; border-bottom:2px solid transparent; }
+.guia-tab.active { background:#C9A84C10; color:#C9A84C; font-weight:600; border-bottom-color:#C9A84C; }
+.guia-list { flex:1; overflow-y:auto; padding:6px 10px; }
+.guia-item { display:flex; align-items:center; gap:7px; padding:6px 7px; border-radius:6px; }
+.guia-rank { width:22px; text-align:center; font-size:11px; font-weight:600; }
+.guia-name { flex:1; min-width:0; color:#ddd; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.guia-peso { padding:1px 6px; border-radius:4px; font-size:11px; font-weight:700; }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+// ─── CONFIG ───
+const API = "http://localhost:8000";
+
+// ─── CATEGORIES ───
+const CATS = [
+  { icon:"🎭", label:"Grandes Nomes", key:"Grandes Nomes", cl:"#C9A84C", desc:"Pavarotti, Callas, Bocelli, Domingo..." },
+  { icon:"👶", label:"Jovens Talentos", key:"Jovens Talentos", cl:"#7ECEC1", desc:"Amira, Jackie, Laura, Emma Kok..." },
+  { icon:"🎵", label:"Corais Folk", key:"Corais Folk Music", cl:"#A78BCA", desc:"Pentatonix, Stellenbosch, Ndlovu..." },
+  { icon:"🕊️", label:"Corais Sacro", key:"Corais Sacro", cl:"#D4A8E0", desc:"King's College, Libera, Vienna Boys..." },
+  { icon:"🎤", label:"Solos & Duetos", key:"Solos %26 Duetos", cl:"#E8917A", desc:"Orliński, Netrebko, Flower Duet..." },
+  { icon:"🌟", label:"Revelações", key:"Programa de Audição", cl:"#F0C75E", desc:"Paul Potts, Susan Boyle, surpresas..." },
+  { icon:"🎹", label:"Sons Inusitados", key:"Sons Surpreendentes", cl:"#6BBFDF", desc:"Theremin, overtone, instrumentos..." },
+];
+
+const GUIA_DATA = {
+  artists: [
+    {n:"Luciano Pavarotti",p:88},{n:"Andrea Bocelli",p:85},{n:"Amira Willighagen",p:82},
+    {n:"Maria Callas",p:80},{n:"Jackie Evancho",p:78},{n:"Laura Bretan",p:77},
+    {n:"Plácido Domingo",p:75},{n:"Jakub Józef Orliński",p:75},{n:"Montserrat Caballé",p:73},
+    {n:"Pentatonix",p:72},{n:"Jonas Kaufmann",p:72},{n:"Anna Netrebko",p:71},
+    {n:"Emma Kok",p:70},{n:"José Carreras",p:70},{n:"Susan Boyle",p:69},
+    {n:"Malakai Bayoh",p:68},{n:"Paul Potts",p:68},{n:"Renée Fleming",p:67},
+    {n:"Cecilia Bartoli",p:66},{n:"Diana Damrau",p:65},{n:"Sarah Brightman",p:65},
+  ],
+  songs: [
+    {n:"Nessun Dorma",p:92},{n:"Ave Maria",p:88},{n:"O mio babbino caro",p:85},
+    {n:"Time to Say Goodbye",p:84},{n:"Con te partirò",p:83},{n:"The Prayer",p:82},
+    {n:"Hallelujah",p:80},{n:"I Dreamed a Dream",p:78},{n:"O Sole Mio",p:78},
+    {n:"La donna è mobile",p:77},{n:"Queen of the Night",p:75},{n:"Casta Diva",p:76},
+    {n:"Pie Jesu",p:74},{n:"Vissi d'arte",p:73},{n:"Habanera",p:72},
+    {n:"Never Enough",p:72},{n:"Flower Duet",p:72},{n:"Baba Yetu",p:70},
+  ],
+  categories: [
+    {n:"Corais Folk Music",p:65},{n:"Grandes Nomes",p:61},{n:"Sons Surpreendentes",p:55},
+    {n:"Duetos",p:54},{n:"Solos & Duetos",p:53},{n:"Solos",p:52},
+    {n:"Programa de Audição",p:50},{n:"Corais Sacro",p:46},{n:"Jovens Talentos",p:46},
+  ],
+};
+
+// ─── STATE ───
+let state = {
+  query: "", results: [], loading: false, msg: "", msgType: "",
+  detail: null, guia: false, guiaTab: "artists", hidePosted: true,
+  activeCat: null, apiOk: null,
+};
+
+// ─── HELPERS ───
+function fV(n) { return n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?Math.round(n/1e3)+"K":String(n); }
+function fD(s) { if(!s) return "—"; return Math.floor(s/60)+":"+(s%60).toString().padStart(2,"0"); }
+function bdg(s) {
+  if(s>=90) return {l:"ALTA",c:"#22c55e",bg:"#052e16"};
+  if(s>=75) return {l:"BOA",c:"#86efac",bg:"#14532d"};
+  if(s>=60) return {l:"MÉDIA",c:"#fbbf24",bg:"#422006"};
+  if(s>=45) return {l:"INCERTA",c:"#f97316",bg:"#431407"};
+  return {l:"BAIXA",c:"#ef4444",bg:"#450a0a"};
+}
+
+function ringSVG(score, sz) {
+  sz = sz || 38;
+  const b = bdg(score), r = (sz-4)/2, ci = 2*Math.PI*r, of = ci*(1-score/100);
+  return `<svg width="${sz}" height="${sz}"><circle cx="${sz/2}" cy="${sz/2}" r="${r}" fill="none" stroke="#1a1a2e" stroke-width="3"/><circle cx="${sz/2}" cy="${sz/2}" r="${r}" fill="none" stroke="${b.c}" stroke-width="3" stroke-dasharray="${ci}" stroke-dashoffset="${of}" stroke-linecap="round" transform="rotate(-90 ${sz/2} ${sz/2})" style="transition:stroke-dashoffset 0.5s"/><text x="${sz/2}" y="${sz/2+4}" text-anchor="middle" fill="${b.c}" font-size="${sz>36?12:10}" font-weight="700">${score}</text></svg>`;
+}
+
+// ─── API CALLS ───
+async function apiCall(url) {
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.json();
+}
+
+async function checkHealth() {
+  try {
+    const d = await apiCall(`${API}/api/health`);
+    state.apiOk = d.youtube_api;
+  } catch(e) { state.apiOk = false; }
+  render();
+}
+
+async function doSearch(q, catKey) {
+  state.query = q || "";
+  state.activeCat = catKey || null;
+  state.loading = true;
+  state.msg = catKey ? `🔍 Buscando "${catKey}" (10-12 buscas paralelas no YouTube)...` : q ? `🔍 Buscando "${q}" no YouTube...` : "🏆 Carregando ranking...";
+  state.msgType = "loading";
+  state.results = [];
+  render();
+
+  try {
+    let url;
+    if (catKey) url = `${API}/api/category/${encodeURIComponent(catKey)}?hide_posted=${state.hidePosted}`;
+    else if (q && q.trim()) url = `${API}/api/search?q=${encodeURIComponent(q.trim())}&max_results=50&hide_posted=${state.hidePosted}`;
+    else url = `${API}/api/ranking?hide_posted=${state.hidePosted}`;
+
+    const data = await apiCall(url);
+    state.results = data.videos || [];
+    const t = data.total_found || state.results.length;
+    const ph = data.posted_hidden || 0;
+
+    if (catKey) state.msg = `✅ ${state.results.length} vídeos em "${catKey}" (${t} total${ph?`, ${ph} já postados ocultos`:""})`;
+    else if (q) state.msg = `✅ ${state.results.length} resultados para "${q}" ${ph?`(${ph} já postados ocultos)`:""}`;
+    else state.msg = `🏆 Ranking: ${state.results.length} vídeos por potencial`;
+    state.msgType = "ok";
+  } catch(e) {
+    state.msg = `❌ Erro: ${e.message}. Verifique se o backend está rodando.`;
+    state.msgType = "error";
+  }
+  state.loading = false;
+  render();
+}
+
+// ─── RENDER ───
+function render() {
+  const vis = state.hidePosted ? state.results.filter(r=>!r.posted) : state.results;
+  const pN = state.results.filter(r=>r.posted).length;
+
+  let html = "";
+
+  // HEADER
+  html += `<div class="header">
+    <div class="logo"><div class="logo-icon">B</div><div><div class="logo-text">Best of Opera</div><div class="logo-sub">APP1 · CURADORIA v2 · LIVE</div></div></div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button onclick="state.guia=!state.guia;render()" style="padding:5px 10px;border-radius:7px;border:${state.guia?'1px solid #C9A84C35':'1px solid #1a1a2e'};background:${state.guia?'#C9A84C0c':'transparent'};color:${state.guia?'#C9A84C':'#555'};font-size:11px;cursor:pointer">🧠 Guia</button>
+      <div class="status ${state.apiOk?'ok':'err'}">● ${state.apiOk===null?'...':state.apiOk?'YouTube API OK':'API offline'}</div>
+    </div>
+  </div>`;
+
+  // HERO
+  html += `<div class="hero"><h1>Encontre o próximo vídeo viral</h1><p>Busca ao vivo no YouTube · Score inteligente · Filtro de posts publicados</p></div>`;
+
+  // SEARCH BAR
+  html += `<div class="search-bar">
+    <input id="searchInput" value="${state.query}" placeholder="Buscar artista, música, estilo, instrumento..." onkeydown="if(event.key==='Enter')doSearch(this.value)">
+    <button class="btn-search" onclick="doSearch(document.getElementById('searchInput').value)" ${state.loading?'disabled':''}>
+      ${state.loading?'...':'Buscar'}
+    </button>
+    ${state.activeCat || state.query ? '<button class="btn-rank" onclick="doSearch()">🏆 Ranking</button>' : ''}
+  </div>`;
+
+  // CATEGORIES
+  html += `<div class="cats">`;
+  for (const c of CATS) {
+    const active = state.activeCat === c.key;
+    html += `<button class="cat-btn" onclick="doSearch('','${c.key}')" ${state.loading?'disabled':''} style="background:${active?c.cl+'20':c.cl+'06'};border-color:${active?c.cl+'40':c.cl+'15'}">
+      <div><span class="icon">${c.icon}</span><span class="label" style="color:${c.cl}">${c.label}</span></div>
+      <div class="desc">${c.desc}</div>
+    </button>`;
+  }
+  html += `</div>`;
+
+  // MSG
+  if (state.msg) html += `<div class="msg ${state.msgType}">${state.msg}</div>`;
+
+  // LOADING
+  if (state.loading) html += `<div class="loader"><div class="loader-bar"><div class="loader-fill"></div></div></div>`;
+
+  // RESULTS
+  if (vis.length > 0) {
+    html += `<div class="results-header"><div class="results-info">${vis.length} vídeo${vis.length!==1?'s':''} · ordenados por score${pN>0&&state.hidePosted?` · <span style="color:#ef4444">${pN} já postado${pN>1?'s':''} oculto${pN>1?'s':''}</span>`:''}</div>`;
+    if (pN > 0) {
+      html += `<button class="toggle-posted" onclick="state.hidePosted=!state.hidePosted;render()" style="background:${state.hidePosted?'#ef444410':'#ffffff06'};border-color:${state.hidePosted?'#ef444420':'#222'};color:${state.hidePosted?'#ef4444':'#555'}">
+        <span style="display:inline-block;width:24px;height:12px;border-radius:6px;position:relative;background:${state.hidePosted?'#ef444430':'#222'}"><span style="position:absolute;top:1.5px;width:9px;height:9px;border-radius:5px;background:${state.hidePosted?'#ef4444':'#444'};left:${state.hidePosted?'13px':'1.5px'};transition:all 0.2s"></span></span>
+        ${state.hidePosted?'Já postados ocultos':'Mostrando todos'}
+      </button>`;
+    }
+    html += `</div>`;
+
+    html += `<div class="grid">`;
+    for (let i = 0; i < vis.length; i++) {
+      const v = vis[i];
+      const sc = v.score?.total ?? 0;
+      html += `<div class="card ${v.posted?'posted':''}" onclick="showDetail(${i})">
+        <div class="card-thumb">
+          ${v.thumbnail ? `<img src="${v.thumbnail}" alt="">` : `<div class="placeholder">🎬</div>`}
+          ${v.posted ? `<div class="posted-badge"><span>🚫 JÁ POSTADO</span></div>` : ''}
+          <div class="card-dur">${fD(v.duration)}</div>
+          <div class="ring">${ringSVG(sc, 34)}</div>
+        </div>
+        <div class="card-body">
+          <div class="card-artist">${v.artist || v.channel || ''}</div>
+          <div class="card-song">${v.song || v.title || ''}</div>
+          <div class="card-meta">
+            <span>👁 ${fV(v.views)}</span><span>📅 ${v.year}</span>${v.hd?'<span class="hd">HD</span>':''}
+          </div>
+          ${v.url ? `<a href="${v.url}" target="_blank" class="card-yt" onclick="event.stopPropagation()">▶ YouTube ↗</a>` : ''}
+        </div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // EMPTY
+  if (!state.loading && !state.results.length && !state.msg) {
+    html += `<div class="empty"><div class="empty-icon">🎭</div><div class="empty-text">Pesquise um termo ou clique numa categoria</div><button class="btn-start" onclick="doSearch()">🏆 Ver ranking de potencial</button></div>`;
+  }
+
+  // MODAL
+  if (state.detail !== null) {
+    const v = vis[state.detail];
+    if (v) {
+      const sc = v.score || {};
+      const b = bdg(sc.total||0);
+      html += `<div class="modal-overlay" onclick="state.detail=null;render()"><div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <div style="flex:1"><div class="modal-artist">${v.artist||v.channel}</div><div class="modal-song">${v.song||v.title}</div>
+            ${v.url?`<a href="${v.url}" target="_blank" style="color:#ef4444;font-size:11px">▶ Assistir no YouTube ↗</a>`:''}
+            ${v.posted?`<div style="margin-top:4px"><span style="background:#ef444415;border:1px solid #ef444435;border-radius:14px;padding:1px 7px;color:#ef4444;font-size:10px;font-weight:600">🚫 JÁ POSTADO</span></div>`:''}
+          </div>
+          ${ringSVG(sc.total||0, 54)}
+        </div>
+        <div class="modal-section">
+          <div class="modal-section-title">📊 Análise de Performance</div>
+          <div class="modal-grid modal-grid-2">
+            <div class="modal-stat"><div class="modal-stat-label">Fixed Rules</div><div class="modal-stat-value modal-stat-big">${sc.fixed||0}<span style="font-size:10px;color:#555">/50</span></div></div>
+            <div class="modal-stat"><div class="modal-stat-label">Guia Vivo</div><div class="modal-stat-value modal-stat-big" style="color:#C9A84C">${sc.guia||0}<span style="font-size:10px;color:#555">/50</span></div></div>
+          </div>
+          ${sc.artist_match?`<div style="margin-top:4px;color:#555;font-size:10px">🎤 Artista: <span style="color:#C9A84C">${sc.artist_match}</span> (peso ${sc.artist_peso})</div>`:''}
+          ${sc.song_match?`<div style="color:#555;font-size:10px">🎵 Música: <span style="color:#C9A84C">${sc.song_match}</span> (peso ${sc.song_peso})</div>`:''}
+          ${sc.cat_peso?`<div style="color:#555;font-size:10px">📂 Categoria (peso ${sc.cat_peso})</div>`:''}
+        </div>
+        <div class="modal-section"><div class="modal-grid modal-grid-3">
+          ${[["👁 Views",fV(v.views)],["📅 Ano",v.year],["⏱ Duração",fD(v.duration)],["📺 HD",v.hd?"Sim":"Não"],["📢 Canal",v.channel||"—"],["📂 Cat.",v.category||"—"]].map(([l,val])=>`<div class="modal-stat"><div class="modal-stat-label">${l}</div><div class="modal-stat-value">${val}</div></div>`).join("")}
+        </div></div>
+        ${v.url?`<div style="margin-bottom:12px"><div style="color:#555;font-size:9px;margin-bottom:3px">🔗 YouTube URL</div><div class="modal-url"><input value="${v.url}" readonly onclick="this.select()"><a href="${v.url}" target="_blank">▶ Abrir</a></div></div>`:''}
+        <div class="modal-btns">
+          ${!v.posted?`<button class="btn-download">⬇ Download</button>`:''}
+          <button class="btn-close" onclick="state.detail=null;render()">Fechar</button>
+        </div>
+      </div></div>`;
+    }
+  }
+
+  // GUIA PANEL
+  if (state.guia) {
+    const tab = state.guiaTab;
+    const data = tab==="artists"?GUIA_DATA.artists:tab==="songs"?GUIA_DATA.songs:GUIA_DATA.categories;
+    html += `<div class="guia-panel">
+      <div class="guia-header"><span style="color:#C9A84C;font-weight:700;font-size:13px">🧠 Guia Vivo V3</span><button onclick="state.guia=false;render()" style="background:none;border:none;color:#555;cursor:pointer;font-size:16px">✕</button></div>
+      <div class="guia-tabs">
+        ${[["artists","🎤 Artistas"],["songs","🎵 Músicas"],["categories","📂 Categ."]].map(([id,l])=>`<button class="guia-tab ${tab===id?'active':''}" onclick="state.guiaTab='${id}';render()">${l}</button>`).join("")}
+      </div>
+      <div class="guia-list">
+        ${data.sort((a,b)=>b.p-a.p).map((it,i)=>{const b=bdg(it.p);return `<div class="guia-item" style="background:${i<3?'#C9A84C05':'transparent'}"><div class="guia-rank" style="color:${i<3?'#C9A84C':'#333'}">${i<3?['🥇','🥈','🥉'][i]:'#'+(i+1)}</div><div class="guia-name">${it.n}</div><div class="guia-peso" style="background:${b.bg};color:${b.c}">${it.p}</div></div>`;}).join("")}
+      </div>
+    </div>`;
+  }
+
+  document.getElementById("app").innerHTML = html;
+}
+
+function showDetail(i) { state.detail = i; render(); }
+
+// ─── INIT ───
+checkHealth();
+render();
+</script>
+</body>
+</html>

@@ -11,17 +11,28 @@ from typing import List, Dict, Optional
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+# Railway may provide postgres:// but psycopg2 requires postgresql://
 DATABASE_URL = os.getenv("DATABASE_URL", "")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+print(f"🔗 DATABASE_URL configured: {bool(DATABASE_URL)}")
 
 
 def _conn():
     """Create a new database connection"""
+    if not DATABASE_URL:
+        raise RuntimeError("DATABASE_URL not set — add PostgreSQL on Railway")
     return psycopg2.connect(DATABASE_URL)
 
 
 def init_db():
     """Initialize database with tables"""
-    conn = _conn()
+    try:
+        conn = _conn()
+    except Exception as e:
+        print(f"❌ PostgreSQL connection failed: {e}")
+        raise
     c = conn.cursor()
 
     # Table: cached_videos (category searches)

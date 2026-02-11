@@ -528,7 +528,15 @@ async def refresh_playlist_endpoint(background_tasks: BackgroundTasks):
 
 
 # Serve frontend
-if STATIC_PATH.exists():
+possible_paths = [
+    STATIC_PATH / "index.html",
+    Path("./index.html"),
+    Path("./static/index.html"),
+]
+static_index = next((p for p in possible_paths if p.exists()), None)
+
+if static_index:
+    static_dir = static_index.parent
     @app.get("/")
-    async def index(): return FileResponse(STATIC_PATH/"index.html")
-    app.mount("/", StaticFiles(directory=str(STATIC_PATH)), name="static")
+    async def index(): return FileResponse(static_index)
+    app.mount("/", StaticFiles(directory=str(static_dir)), name="static")

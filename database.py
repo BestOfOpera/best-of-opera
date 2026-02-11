@@ -12,9 +12,19 @@ from typing import List, Dict, Optional
 import psycopg
 from psycopg.rows import dict_row
 
-# Railway may provide postgres:// — psycopg3 accepts both formats
-DATABASE_URL = os.getenv("DATABASE_URL", "")
+# Railway may use different variable names for PostgreSQL
+# Try multiple common names
+DATABASE_URL = ""
+for var_name in ["DATABASE_URL", "DATABASE_PUBLIC_URL", "DATABASE_PRIVATE_URL", "POSTGRES_URL"]:
+    val = os.getenv(var_name, "")
+    if val:
+        DATABASE_URL = val
+        print(f"🔗 Found PostgreSQL URL in {var_name}")
+        break
 
+# Debug: show all DB-related env vars available
+db_vars = [k for k in os.environ if any(x in k.upper() for x in ["DATABASE", "POSTGRES", "PG"])]
+print(f"🔍 DB-related env vars found: {db_vars}")
 print(f"🔗 DATABASE_URL configured: {bool(DATABASE_URL)}")
 
 

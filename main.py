@@ -10,16 +10,20 @@ from typing import Optional
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+# Import database module
+import database as db
+
 # ─── CONFIG ───
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 DATASET_PATH = Path(os.getenv("DATASET_PATH", "./data/dataset_v3_categorizado.csv"))
 STATIC_PATH = Path(os.getenv("STATIC_PATH", "./static"))
+PLAYLIST_ID = "PLGjiuPqoIDSnphyXIetV6iwm4-3K-fvKk"  # Playlist pré-aprovados
 
 # ─── GUIA VIVO V3 (calibrated from 267 posts) ───
 GUIA = {
@@ -279,11 +283,87 @@ async def yt_search(query: str, max_results: int = 25) -> list:
         return results
 
 
+async def yt_playlist(playlist_id: str, max_results: int = 50) -> list:
+    """Fetch videos from a YouTube playlist"""
+    if not YOUTUBE_API_KEY: return []
+    async with httpx.AsyncClient(timeout=15) as client:
+        # Get playlist items
+        r1 = await client.get("https://www.googleapis.com/youtube/v3/playlistItems", params={
+            "part": "snippet",
+            "playlistId": playlist_id,
+            "maxResults": max_results,
+            "key": YOUTUBE_API_KEY
+        })
+        
+        if r1.status_code != 200:
+            print(f"⚠️ YT playlist error {r1.status_code}: {r1.text[:200]}")
+            return []
+        
+        items = r1.json().get("items", [])
+        if not items: return []
+        
+        # Extract video IDs
+        vids = [it["snippet"]["resourceId"]["videoId"] for it in items]
+        if not vids: return []
+        
+        # Get video details
+        r2 = await client.get("https://www.googleapis.com/youtube/v3/videos", params={
+            "part": "contentDetails,statistics",
+            "id": ",".join(vids),
+            "key": YOUTUBE_API_KEY
+        })
+        
+        dm = {}
+        if r2.status_code == 200:
+            for v in r2.json().get("items", []): dm[v["id"]] = v
+        
+        results = []
+        for it in items:
+            vid = it["snippet"]["resourceId"]["videoId"]
+            sn = it.get("snippet", {})
+            title = sn.get("title", "")
+            pub = sn.get("publishedAt", "")[:10]
+            yr = int(pub[:4]) if pub else 0
+            thumb = sn.get("thumbnails", {}).get("high", {}).get("url", "")
+            
+            det = dm.get(vid, {})
+            dur = parse_iso_dur(det.get("contentDetails", {}).get("duration", ""))
+            defn = det.get("contentDetails", {}).get("definition", "sd")
+            views = int(det.get("statistics", {}).get("viewCount", 0))
+            
+            artist, song = extract_artist_song(title)
+            results.append({
+                "video_id": vid,
+                "url": f"https://www.youtube.com/watch?v={vid}",
+                "title": title,
+                "artist": artist,
+                "song": song or title,
+                "channel": sn.get("channelTitle", ""),
+                "year": yr,
+                "published": pub,
+                "duration": dur,
+                "views": views,
+                "hd": defn in ("hd", "4k"),
+                "thumbnail": thumb,
+                "category": "Playlist"
+            })
+        
+        return results
+
+
 # ─── APP ───
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialize database
+    db.init_db()
     load_posted()
     print(f"{'✅' if YOUTUBE_API_KEY else '⚠️'} YouTube API {'configured' if YOUTUBE_API_KEY else 'NOT SET'}")
+    
+    # Auto-populate cache on first access (if empty)
+    if db.is_cache_empty():
+        print("🔄 Cache empty - auto-populating in background...")
+        asyncio.create_task(populate_initial_cache())
+    
     yield
 
 app = FastAPI(title="Best of Opera — APP1 Curadoria", version="2.0.0", lifespan=lifespan)
@@ -304,22 +384,69 @@ def _process(videos, query, hide_posted, category=None):
             "posted_hidden":pc if hide_posted else 0, "videos":vis}
 
 
+async def populate_initial_cache():
+    """Background task to populate cache with all categories"""
+    print("🚀 Starting initial cache population...")
+    for category in CATEGORY_QUERIES.keys():
+        try:
+            queries = CATEGORY_QUERIES[category]
+            tasks = [yt_search(q, 15) for q in queries]
+            batches = await asyncio.gather(*tasks, return_exceptions=True)
+            seen = set(); merged = []
+            for batch in batches:
+                if isinstance(batch, Exception): continue
+                for v in batch:
+                    if v["video_id"] not in seen:
+                        seen.add(v["video_id"]); merged.append(v)
+            
+            # Process and save to cache
+            processed = _process(merged, category, False, category)
+            db.save_cached_videos(processed["videos"], category)
+            print(f"✅ Cached {len(processed['videos'])} videos for {category}")
+        except Exception as e:
+            print(f"❌ Error caching {category}: {e}")
+    
+    db.set_config("last_category_refresh", datetime.now().isoformat())
+    print("🎉 Initial cache population complete!")
+
+
+async def refresh_playlist():
+    """Refresh playlist videos from YouTube"""
+    print("🔄 Refreshing playlist...")
+    raw = await yt_playlist(PLAYLIST_ID, 50)
+    processed = _process(raw, "Playlist", False, "Playlist")
+    db.save_playlist_videos(processed["videos"])
+    db.set_config("last_playlist_refresh", datetime.now().isoformat())
+    print(f"✅ Playlist refreshed: {len(processed['videos'])} videos")
+
+
 @app.get("/api/health")
 async def health():
     return {"status":"ok","youtube_api":bool(YOUTUBE_API_KEY),
             "posted_count":len(posted_registry),"guia_artists":len(GUIA["artists"])}
 
 @app.get("/api/search")
-async def search(q:str=Query(...), max_results:int=Query(25,ge=1,le=50), hide_posted:bool=Query(True)):
-    """Free text search on YouTube, scored by Guia Vivo"""
+async def search(q:str=Query(...), max_results:int=Query(10,ge=1,le=50), hide_posted:bool=Query(True)):
+    """Free text search on YouTube, scored by Guia Vivo (limited to save quota)"""
     raw = await yt_search(q, max_results)
     return _process(raw, q, hide_posted)
 
 @app.get("/api/category/{category}")
-async def search_category(category:str, hide_posted:bool=Query(True)):
-    """Category search — runs 10-12 parallel YouTube queries for broad coverage"""
+async def search_category(category:str, hide_posted:bool=Query(True), force_refresh:bool=Query(False)):
+    """Category search — uses cached results by default, force_refresh=true to update"""
     queries = CATEGORY_QUERIES.get(category)
     if not queries: raise HTTPException(404, f"Categoria não encontrada: {category}")
+    
+    # Try to get from cache first
+    if not force_refresh:
+        cached = db.get_cached_videos(category, hide_posted)
+        if cached:
+            print(f"✅ Serving {len(cached)} cached videos for {category}")
+            return {"query":category, "category":category, "total_found":len(cached),
+                    "posted_hidden":0, "videos":cached, "cached":True}
+    
+    # If no cache or force_refresh, fetch from YouTube
+    print(f"🔍 Fetching fresh results for {category}")
     tasks = [yt_search(q, 15) for q in queries]
     batches = await asyncio.gather(*tasks, return_exceptions=True)
     seen = set(); merged = []
@@ -328,7 +455,11 @@ async def search_category(category:str, hide_posted:bool=Query(True)):
         for v in batch:
             if v["video_id"] not in seen:
                 seen.add(v["video_id"]); merged.append(v)
-    return _process(merged, category, hide_posted, category)
+    
+    result = _process(merged, category, hide_posted, category)
+    db.save_cached_videos(result["videos"], category)
+    result["cached"] = False
+    return result
 
 @app.get("/api/ranking")
 async def ranking(hide_posted:bool=Query(True)):
@@ -356,6 +487,45 @@ async def get_posted():
 @app.get("/api/posted/check")
 async def check_posted(artist:str="", song:str=""):
     return {"posted":is_posted(artist,song)}
+
+
+# ─── CACHE ENDPOINTS ───
+@app.get("/api/cache/status")
+async def cache_status():
+    """Get cache statistics and last update times"""
+    return db.get_cache_status()
+
+@app.post("/api/cache/populate-initial")
+async def populate_cache(background_tasks: BackgroundTasks):
+    """Manually trigger initial cache population"""
+    background_tasks.add_task(populate_initial_cache)
+    return {"status": "started", "message": "Cache population started in background"}
+
+@app.post("/api/cache/refresh-categories")
+async def refresh_categories(background_tasks: BackgroundTasks):
+    """Manually refresh all category caches"""
+    background_tasks.add_task(populate_initial_cache)
+    return {"status": "started", "message": "Category refresh started in background"}
+
+
+# ─── PLAYLIST ENDPOINTS ───
+@app.get("/api/playlist/videos")
+async def get_playlist(hide_posted: bool = Query(True)):
+    """Get cached playlist videos"""
+    videos = db.get_playlist_videos(hide_posted)
+    return {
+        "total_found": len(videos),
+        "videos": videos,
+        "playlist_id": PLAYLIST_ID,
+        "cached": True
+    }
+
+@app.post("/api/playlist/refresh")
+async def refresh_playlist_endpoint(background_tasks: BackgroundTasks):
+    """Manually refresh playlist from YouTube"""
+    background_tasks.add_task(refresh_playlist)
+    return {"status": "started", "message": "Playlist refresh started in background"}
+
 
 # Serve frontend
 if STATIC_PATH.exists():

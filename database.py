@@ -12,20 +12,14 @@ from typing import List, Dict, Optional
 import psycopg
 from psycopg.rows import dict_row
 
-# Railway may use different variable names for PostgreSQL
-# Try multiple common names
-DATABASE_URL = ""
-for var_name in ["DATABASE_URL", "DATABASE_PUBLIC_URL", "DATABASE_PRIVATE_URL", "POSTGRES_URL"]:
-    val = os.getenv(var_name, "")
-    if val:
-        DATABASE_URL = val
-        print(f"🔗 Found PostgreSQL URL in {var_name}")
-        break
-
-# Debug: show what env vars exist
-all_var_names = sorted(os.environ.keys())
-print(f"🔍 ALL env vars ({len(all_var_names)}): {all_var_names}")
-print(f"🔗 DATABASE_URL configured: {bool(DATABASE_URL)}")
+# Try env var first, fall back to Railway internal URL
+# TODO: fix Railway env var injection and remove hardcoded fallback
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+if not DATABASE_URL:
+    DATABASE_URL = "postgresql://postgres:PWlhCmhfTQOFywLdRKexzGfKKxEfXGgs@postgres.railway.internal:5432/railway"
+    print("⚠️ DATABASE_URL env var not found — using Railway internal fallback")
+else:
+    print(f"🔗 DATABASE_URL loaded from env var")
 
 
 def _conn():

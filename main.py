@@ -21,7 +21,7 @@ import database as db
 
 # ─── CONFIG ───
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
-DATASET_PATH = Path(os.getenv("DATASET_PATH", "./data/dataset_v3_categorizado.csv"))
+DATASET_PATH = Path(os.getenv("DATASET_PATH", "./dataset_v3_categorizado.csv"))
 STATIC_PATH = Path(os.getenv("STATIC_PATH", "./static"))
 PLAYLIST_ID = "PLGjiuPqoIDSnphyXIetV6iwm4-3K-fvKk"  # Playlist pré-aprovados
 
@@ -56,7 +56,7 @@ GUIA = {
     "categories": {
         "Corais Folk Music":65,"Grandes Nomes":61,"Sons Surpreendentes":55,
         "Duetos":54,"Corais Sacro":46,"Jovens Talentos":46,
-        "Programa de Audição":50,"Solos":52,"Solos & Duetos":53,
+        "Programa de Audição":50,"Solos":52,
     },
 }
 
@@ -116,17 +116,29 @@ CATEGORY_QUERIES = {
         "Vienna Boys Choir",
         "church choir classical",
     ],
-    "Solos & Duetos": [
+    "Solos": [
         "best opera aria solo performance",
-        "opera duet soprano tenor famous",
         "Nessun Dorma best live version",
         "soprano aria concert",
         "tenor famous aria live",
         "baritone opera aria",
         "countertenor baroque performance",
+        "Jakub Orliński baroque",
+        "opera solo recital live",
+        "mezzo soprano aria performance",
+        "bass opera aria live",
+    ],
+    "Duetos": [
+        "opera duet soprano tenor famous",
         "Bocelli Brightman Time Say Goodbye",
         "opera love duet",
-        "Jakub Orliński baroque",
+        "Flower Duet opera",
+        "famous opera duets live",
+        "tenor soprano duet concert",
+        "opera duet Pavarotti",
+        "classical crossover duet performance",
+        "Con te partirò duet live",
+        "The Prayer duet live performance",
     ],
     "Programa de Audição": [
         "opera singer surprise audition",
@@ -511,8 +523,11 @@ async def refresh_categories(background_tasks: BackgroundTasks):
 # ─── PLAYLIST ENDPOINTS ───
 @app.get("/api/playlist/videos")
 async def get_playlist(hide_posted: bool = Query(True)):
-    """Get cached playlist videos"""
+    """Get playlist videos — auto-fetches from YouTube if cache is empty"""
     videos = db.get_playlist_videos(hide_posted)
+    if not videos:
+        await refresh_playlist()
+        videos = db.get_playlist_videos(hide_posted)
     return {
         "total_found": len(videos),
         "videos": videos,

@@ -91,9 +91,12 @@ def init_db():
 
 def save_cached_videos(videos: List[Dict], category: str):
     """Save videos to cache (removes old entries for this category first)"""
+    if not videos:
+        print(f"⚠️ Skipping cache save for {category}: no videos to save")
+        return
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    
+
     # Clear old cache for this category
     c.execute("DELETE FROM cached_videos WHERE category = ?", (category,))
     
@@ -168,9 +171,12 @@ def get_cached_videos(category: str, hide_posted: bool = True) -> List[Dict]:
 
 def save_playlist_videos(videos: List[Dict]):
     """Save playlist videos (clears old entries first)"""
+    if not videos:
+        print("⚠️ Skipping playlist save: no videos to save")
+        return
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    
+
     c.execute("DELETE FROM playlist_videos")
     
     for idx, v in enumerate(videos):

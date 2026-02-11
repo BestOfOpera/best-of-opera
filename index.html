@@ -129,7 +129,7 @@ a { text-decoration:none; }
 
 <script>
 // ─── CONFIG ───
-const API = "";
+const API = "http://localhost:8000";
 
 // ─── CATEGORIES ───
 const CATS = [
@@ -257,6 +257,26 @@ function render() {
   // HERO
   html += `<div class="hero"><h1>Encontre o próximo vídeo viral</h1><p>Busca ao vivo no YouTube · Score inteligente · Filtro de posts publicados</p></div>`;
 
+  // PLAYLIST PRÉ-APROVADOS (DESTAQUE)
+  html += `<div style="max-width:750px;margin:0 auto 16px;padding:0 18px;">
+    <div onclick="loadPlaylist()" style="padding:12px 16px;border-radius:10px;background:linear-gradient(135deg,#C9A84C15,#8B691415);border:2px solid #C9A84C;cursor:pointer;display:flex;align-items:center;gap:10px;transition:all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+      <span style="font-size:24px;">📝</span>
+      <div style="flex:1;">
+        <div style="color:#C9A84C;font-weight:700;font-size:14px;">PLAYLIST PRÉ-APROVADOS</div>
+        <div id="playlist-status" style="color:#555;font-size:10px;margin-top:2px;">Carregando status...</div>
+      </div>
+      <span style="color:#C9A84C;font-size:18px;">→</span>
+    </div>
+  </div>`;
+
+  // CACHE STATUS
+  html += `<div style="max-width:750px;margin:0 auto 10px;padding:0 18px;">
+    <div style="padding:8px 12px;border-radius:8px;background:#0d0d18;border:1px solid #1a1a2e;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <div id="cache-status" style="font-size:11px;color:#555;">Cache: verificando...</div>
+      <button onclick="refreshCache()" style="padding:4px 10px;border-radius:6px;border:1px solid #C9A84C30;background:#C9A84C10;color:#C9A84C;font-size:10px;cursor:pointer;font-weight:600;">🔄 Atualizar Cache</button>
+    </div>
+  </div>`;
+
   // SEARCH BAR
   html += `<div class="search-bar">
     <input id="searchInput" value="${state.query}" placeholder="Buscar artista, música, estilo, instrumento..." onkeydown="if(event.key==='Enter')doSearch(this.value)">
@@ -379,8 +399,73 @@ function render() {
 
 function showDetail(i) { state.detail = i; render(); }
 
+// ─── PLAYLIST & CACHE ───
+async function loadPlaylist() {
+  state.query = "Playlist Pré-Aprovados";
+  state.activeCat = "Playlist";
+  state.loading = true;
+  state.msg = "📝 Carregando playlist pré-aprovados...";
+  state.msgType = "loading";
+  state.results = [];
+  render();
+
+  try {
+    const data = await apiCall(`${API}/api/playlist/videos?hide_posted=${state.hidePosted}`);
+    state.results = data.videos || [];
+    state.msg = `✅ ${state.results.length} vídeos da playlist pré-aprovados`;
+    state.msgType = "ok";
+  } catch(e) {
+    state.msg = `❌ Erro ao carregar playlist: ${e.message}`;
+    state.msgType = "error";
+  }
+  state.loading = false;
+  render();
+}
+
+async function updateCacheStatus() {
+  try {
+    const status = await apiCall(`${API}/api/cache/status`);
+    const totalCached = Object.values(status.categories || {}).reduce((sum, cat) => sum + cat.count, 0);
+    const playlistCount = status.playlist?.count || 0;
+    
+    let statusText = `Cache: ${totalCached} vídeos`;
+    if (playlistCount > 0) statusText += ` · Playlist: ${playlistCount}`;
+    
+    const lastUpdate = status.last_category_refresh;
+    if (lastUpdate) {
+      const days = Math.floor((Date.now() - new Date(lastUpdate)) / 86400000);
+      statusText += ` · Atualizado há ${days} dia${days !== 1 ? 's' : ''}`;
+    }
+    
+    document.getElementById("cache-status").textContent = statusText;
+    
+    // Update playlist status
+    const playlistUpdate = status.playlist?.last_update;
+    if (playlistUpdate) {
+      const days = Math.floor((Date.now() - new Date(playlistUpdate)) / 86400000);
+      document.getElementById("playlist-status").textContent = `Atualizada há ${days} dia${days !== 1 ? 's' : ''} · ${playlistCount} vídeos`;
+    } else {
+      document.getElementById("playlist-status").textContent = "Clique para carregar";
+    }
+  } catch(e) {
+    document.getElementById("cache-status").textContent = "Cache: erro ao carregar status";
+  }
+}
+
+async function refreshCache() {
+  if (!confirm("Atualizar todo o cache? Isso vai buscar novamente todas as categorias no YouTube. Pode demorar alguns minutos.")) return;
+  
+  try {
+    await apiCall(`${API}/api/cache/refresh-categories`);
+    alert("✅ Atualização do cache iniciada em background! Aguarde alguns minutos e recarregue a página.");
+  } catch(e) {
+    alert(`❌ Erro ao iniciar atualização: ${e.message}`);
+  }
+}
+
 // ─── INIT ───
 checkHealth();
+updateCacheStatus();
 render();
 </script>
 </body>

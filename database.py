@@ -1,5 +1,6 @@
 # ══════════════════════════════════════════════════════════════
 # DATABASE MODULE - PostgreSQL Cache & Playlist Management
+# Uses psycopg 3 (modern driver with bundled libpq binary)
 # Railway provides DATABASE_URL automatically when PostgreSQL
 # is added as a service.
 # ══════════════════════════════════════════════════════════════
@@ -8,13 +9,11 @@ import os
 from datetime import datetime
 from typing import List, Dict, Optional
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg
+from psycopg.rows import dict_row
 
-# Railway may provide postgres:// but psycopg2 requires postgresql://
+# Railway may provide postgres:// — psycopg3 accepts both formats
 DATABASE_URL = os.getenv("DATABASE_URL", "")
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 print(f"🔗 DATABASE_URL configured: {bool(DATABASE_URL)}")
 
@@ -23,7 +22,7 @@ def _conn():
     """Create a new database connection"""
     if not DATABASE_URL:
         raise RuntimeError("DATABASE_URL not set — add PostgreSQL on Railway")
-    return psycopg2.connect(DATABASE_URL)
+    return psycopg.connect(DATABASE_URL)
 
 
 def init_db():
@@ -152,7 +151,7 @@ def save_cached_videos(videos: List[Dict], category: str):
 def get_cached_videos(category: str, hide_posted: bool = True) -> List[Dict]:
     """Retrieve cached videos for a category"""
     conn = _conn()
-    c = conn.cursor(cursor_factory=RealDictCursor)
+    c = conn.cursor(row_factory=dict_row)
 
     query = "SELECT * FROM cached_videos WHERE category = %s"
     params: list = [category]
@@ -237,7 +236,7 @@ def save_playlist_videos(videos: List[Dict]):
 def get_playlist_videos(hide_posted: bool = True) -> List[Dict]:
     """Retrieve cached playlist videos"""
     conn = _conn()
-    c = conn.cursor(cursor_factory=RealDictCursor)
+    c = conn.cursor(row_factory=dict_row)
 
     query = "SELECT * FROM playlist_videos"
     if hide_posted:

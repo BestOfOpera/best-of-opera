@@ -22,9 +22,9 @@ for var_name in ["DATABASE_URL", "DATABASE_PUBLIC_URL", "DATABASE_PRIVATE_URL", 
         print(f"🔗 Found PostgreSQL URL in {var_name}")
         break
 
-# Debug: show all DB-related env vars available
-db_vars = [k for k in os.environ if any(x in k.upper() for x in ["DATABASE", "POSTGRES", "PG"])]
-print(f"🔍 DB-related env vars found: {db_vars}")
+# Debug: show what env vars exist
+all_var_names = sorted(os.environ.keys())
+print(f"🔍 ALL env vars ({len(all_var_names)}): {all_var_names}")
 print(f"🔗 DATABASE_URL configured: {bool(DATABASE_URL)}")
 
 

@@ -22,6 +22,7 @@ YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 DATASET_PATH = Path(os.getenv("DATASET_PATH", "./dataset_v3_categorizado.csv"))
 STATIC_PATH = Path(os.getenv("STATIC_PATH", "./static"))
 PLAYLIST_ID = "PLGjiuPqoIDSnphyXIetV6iwm4-3K-fvKk"
+APP_PASSWORD = os.getenv("APP_PASSWORD", "opera2026")
 
 # ─── ANTI-SPAM (appended to all YouTube searches) ───
 ANTI_SPAM = "-karaoke -piano -tutorial -lesson -reaction -review -lyrics -chords"
@@ -469,6 +470,12 @@ async def refresh_playlist():
 
 
 # ─── ENDPOINTS ───
+
+@app.post("/api/auth")
+async def auth(password: str = Query(...)):
+    if password == APP_PASSWORD:
+        return {"ok": True}
+    raise HTTPException(401, "Senha incorreta")
 
 @app.get("/api/health")
 async def health():

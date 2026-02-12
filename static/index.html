@@ -156,6 +156,19 @@ a { text-decoration:none; color:#8B6914; }
 .dl-item a { color:#D4483B; font-size:10px; margin-left:6px; }
 .btn-export { padding:4px 10px; border-radius:6px; border:1px solid #C9A84C40; background:#C9A84C10; color:#8B6914; font-size:10px; cursor:pointer; font-weight:600; text-decoration:none; }
 
+/* Login */
+.login-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+.login-box { background:#FFFFFF; border:2px solid #E8E0D4; border-radius:16px; padding:40px 36px; text-align:center; max-width:340px; width:100%; box-shadow:0 4px 20px rgba(0,0,0,0.06); }
+.login-box .logo-icon { width:48px; height:48px; border-radius:12px; font-size:22px; margin:0 auto 14px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#C9A84C,#8B6914); color:#fff; font-weight:700; }
+.login-box h2 { font-size:18px; color:#8B6914; margin-bottom:4px; }
+.login-box p { font-size:12px; color:#8B8680; margin-bottom:20px; }
+.login-box input { width:100%; padding:12px 14px; border-radius:10px; border:1px solid #E8E0D4; font-size:14px; text-align:center; outline:none; margin-bottom:12px; }
+.login-box input:focus { border-color:#C9A84C; box-shadow:0 0 0 3px #C9A84C20; }
+.login-box button { width:100%; padding:12px; border-radius:10px; border:none; background:linear-gradient(135deg,#C9A84C,#8B6914); color:#fff; font-weight:700; font-size:14px; cursor:pointer; }
+.login-box button:hover { opacity:0.9; }
+.login-box button:disabled { opacity:0.5; }
+.login-err { color:#D4483B; font-size:12px; margin-top:8px; min-height:18px; }
+
 @media (max-width:600px) {
   .cats { grid-template-columns:repeat(2,1fr); }
 }
@@ -163,10 +176,56 @@ a { text-decoration:none; color:#8B6914; }
 </head>
 <body>
 
-<div id="app"></div>
+<div id="login"></div>
+<div id="app" style="display:none"></div>
 
 <script>
 const API = "";
+
+// ─── AUTH ───
+function showLogin(){
+  document.getElementById('login').innerHTML=`
+  <div class="login-screen">
+    <div class="login-box">
+      <div class="logo-icon">BO</div>
+      <h2>Best of Opera</h2>
+      <p>Digite a senha para acessar</p>
+      <input type="password" id="login-pw" placeholder="Senha" onkeydown="if(event.key==='Enter')doLogin()">
+      <button onclick="doLogin()">Entrar</button>
+      <div class="login-err" id="login-err"></div>
+    </div>
+  </div>`;
+  document.getElementById('login-pw').focus();
+}
+
+async function doLogin(){
+  const pw=document.getElementById('login-pw').value.trim();
+  if(!pw) return;
+  const btn=document.querySelector('.login-box button');
+  btn.disabled=true; btn.textContent='Verificando...';
+  document.getElementById('login-err').textContent='';
+  try{
+    const r=await fetch(`${API}/api/auth?password=${encodeURIComponent(pw)}`,{method:'POST'});
+    if(!r.ok) throw new Error('Senha incorreta');
+    sessionStorage.setItem('bo_auth','1');
+    document.getElementById('login').style.display='none';
+    document.getElementById('app').style.display='';
+    initApp();
+  }catch(e){
+    document.getElementById('login-err').textContent=e.message;
+    btn.disabled=false; btn.textContent='Entrar';
+  }
+}
+
+function checkAuth(){
+  if(sessionStorage.getItem('bo_auth')==='1'){
+    document.getElementById('login').style.display='none';
+    document.getElementById('app').style.display='';
+    initApp();
+  }else{
+    showLogin();
+  }
+}
 
 // ─── STATE ───
 let state = {
@@ -530,10 +589,13 @@ async function loadDownloadHistory(){
 }
 
 // ─── INIT ───
-checkHealth();
-loadQuota();
-loadCategories();
-render();
+function initApp(){
+  checkHealth();
+  loadQuota();
+  loadCategories();
+  render();
+}
+checkAuth();
 </script>
 </body>
 </html>

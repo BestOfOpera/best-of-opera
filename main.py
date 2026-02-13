@@ -65,6 +65,14 @@ FFPROBE_BIN = _find_bin("ffprobe")
 print(f"🎬 FFmpeg: {FFMPEG_BIN}")
 print(f"🎬 FFprobe: {FFPROBE_BIN}")
 
+# Debug: log PATH and test ffmpeg at startup
+print(f"🔍 PATH: {os.environ.get('PATH', 'NOT SET')}")
+try:
+    _test = subprocess.run([FFMPEG_BIN, "-version"], capture_output=True, text=True, timeout=5)
+    print(f"✅ FFmpeg test: {_test.stdout.split(chr(10))[0] if _test.returncode == 0 else 'FAILED: ' + _test.stderr[:100]}")
+except Exception as _e:
+    print(f"❌ FFmpeg test failed: {_e}")
+
 # ─── ANTI-SPAM (appended to all YouTube searches) ───
 ANTI_SPAM = "-karaoke -piano -tutorial -lesson -reaction -review -lyrics -chords"
 
@@ -517,6 +525,25 @@ async def auth(password: str = Query(...)):
     if password == APP_PASSWORD:
         return {"ok": True}
     raise HTTPException(401, "Senha incorreta")
+
+@app.get("/api/debug/ffmpeg")
+async def debug_ffmpeg():
+    import glob as _glob
+    info = {"FFMPEG_BIN": FFMPEG_BIN, "FFPROBE_BIN": FFPROBE_BIN, "PATH": os.environ.get("PATH", "")}
+    try:
+        r = subprocess.run([FFMPEG_BIN, "-version"], capture_output=True, text=True, timeout=5)
+        info["ffmpeg_version"] = r.stdout.split("\n")[0] if r.returncode == 0 else f"ERROR: {r.stderr[:200]}"
+    except Exception as e:
+        info["ffmpeg_error"] = str(e)
+    # Search for ffmpeg in common locations
+    info["nix_ffmpeg"] = _glob.glob("/nix/store/*/bin/ffmpeg")[:5]
+    info["usr_ffmpeg"] = _glob.glob("/usr/bin/ffmpeg") + _glob.glob("/usr/local/bin/ffmpeg")
+    try:
+        r2 = subprocess.run(["which", "ffmpeg"], capture_output=True, text=True, timeout=5)
+        info["which_ffmpeg"] = r2.stdout.strip()
+    except Exception:
+        info["which_ffmpeg"] = "not found"
+    return info
 
 @app.get("/api/health")
 async def health():

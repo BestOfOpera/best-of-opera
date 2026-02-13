@@ -1,8 +1,3 @@
 [phases.setup]
 nixPkgs = ["ffmpeg-full"]
-
-[phases.install]
-cmds = ["pip install -r requirements.txt"]
-
-[start]
-cmd = "which ffmpeg && echo 'FFmpeg found' || echo 'FFmpeg NOT found'; uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"
+aptPkgs = ["ffmpeg"]

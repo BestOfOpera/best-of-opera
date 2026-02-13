@@ -524,10 +524,20 @@ async function loadProdProject(id){
   render();
 }
 
+function mmssToSeconds(mmss){
+  const parts = (mmss||'00:00').split(':');
+  return (parseInt(parts[0])||0)*60 + (parseInt(parts[1])||0);
+}
+
 async function prodUpload(){
   const form = document.getElementById('prod-upload-form');
   if(!form) return;
   const fd = new FormData(form);
+  // Convert MM:SS to seconds
+  fd.set('cut_start', mmssToSeconds(fd.get('cut_start_mmss')));
+  fd.set('cut_end', mmssToSeconds(fd.get('cut_end_mmss')));
+  fd.delete('cut_start_mmss');
+  fd.delete('cut_end_mmss');
   if(!fd.get('video') || !fd.get('video').name){
     state.prodMsg = 'Selecione um arquivo MP4';
     state.prodMsgType = 'error';
@@ -951,6 +961,10 @@ function renderProducao(){
   }
 
   document.getElementById("app").innerHTML = html;
+  // Auto-load files list for completed projects
+  if(state.prodView === 'detail' && state.prodProject && state.prodProject.status === 'completed' && state.prodProject.output_path){
+    prodShowFiles(state.prodProject.id);
+  }
 }
 
 function renderProdList(){
@@ -1000,19 +1014,35 @@ function renderProdForm(){
         <input type="text" name="song" placeholder="Ex: Nessun Dorma" required>
       </div>
       <div class="form-group">
+        <label>Idioma da musica (para transcricao)</label>
+        <select name="language" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #E8E0D4;font-size:13px;background:#FDF6EE">
+          <option value="it">Italiano</option>
+          <option value="fr">Frances</option>
+          <option value="de">Alemao</option>
+          <option value="en">Ingles</option>
+          <option value="es">Espanhol</option>
+          <option value="pt">Portugues</option>
+          <option value="ru">Russo</option>
+          <option value="la">Latim</option>
+          <option value="pl">Polones</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label>Hook / Contexto (opcional)</label>
         <input type="text" name="hook" placeholder="Ex: Last live performance before retirement">
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Corte inicio (seg)</label>
-          <input type="number" name="cut_start" value="0" step="0.1" min="0">
+          <label>Onde inicia o corte (MM:SS)</label>
+          <input type="text" name="cut_start_mmss" value="00:00" placeholder="00:00" pattern="[0-9]{1,2}:[0-9]{2}" style="font-family:monospace;font-size:16px;text-align:center">
         </div>
         <div class="form-group">
-          <label>Corte fim (seg, 0=tudo)</label>
-          <input type="number" name="cut_end" value="0" step="0.1" min="0">
+          <label>Onde termina o corte (MM:SS, 00:00=tudo)</label>
+          <input type="text" name="cut_end_mmss" value="00:00" placeholder="00:00" pattern="[0-9]{1,2}:[0-9]{2}" style="font-family:monospace;font-size:16px;text-align:center">
         </div>
       </div>
+      <input type="hidden" name="cut_start" value="0">
+      <input type="hidden" name="cut_end" value="0">
       <button type="submit" class="btn-primary" ${state.prodLoading?'disabled':''}>
         ${state.prodLoading?'Enviando...':'Criar Projeto'}
       </button>
@@ -1067,7 +1097,17 @@ function renderProdDetail(){
   const canTranscribe = ['uploaded','error','transcribed'].includes(p.status);
   if(p.status === 'uploaded' || p.transcription !== null || canTranscribe){
     html += `<div class="wf-section">
-      <h3>Transcricao</h3>`;
+      <h3>Transcricao ${p.language ? `<span style="font-size:10px;color:#B5AFA8;font-weight:400">(${p.language})</span>` : ''}</h3>`;
+
+    // Mini video player (always visible when video exists)
+    html += `<div style="margin-bottom:12px">
+      <video id="prod-video-player" controls preload="metadata"
+        style="width:100%;max-height:240px;border-radius:8px;background:#000"
+        src="${API}/api/prod/projects/${p.id}/video">
+      </video>
+      <div style="font-size:10px;color:#B5AFA8;margin-top:4px">Use o player para conferir os tempos da transcricao</div>
+    </div>`;
+
     if(p.transcription){
       // Two-column layout: transcription with timestamps + official lyrics
       html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`;
@@ -1081,7 +1121,7 @@ function renderProdDetail(){
           const mm1 = Math.floor((seg.start||0)/60); const ss1 = Math.floor((seg.start||0)%60);
           const mm2 = Math.floor((seg.end||0)/60); const ss2 = Math.floor((seg.end||0)%60);
           const ts = mm1+':'+String(ss1).padStart(2,'0')+' - '+mm2+':'+String(ss2).padStart(2,'0');
-          html += `<div style="padding:3px 0;border-bottom:1px solid #F0EBE3">
+          html += `<div style="padding:3px 0;border-bottom:1px solid #F0EBE3;cursor:pointer" onclick="document.getElementById('prod-video-player').currentTime=${seg.start||0}">
             <span style="color:#C9A84C;font-size:10px;font-weight:600;margin-right:6px">[${ts}]</span>
             <span style="color:#2D2A26">${escHtml(seg.text||'')}</span>
           </div>`;
@@ -1097,8 +1137,8 @@ function renderProdDetail(){
       // Right: official lyrics panel
       html += `<div>
         <div style="font-size:11px;font-weight:600;color:#8B8680;margin-bottom:4px">Letra Oficial (referencia)</div>
-        <textarea id="prod-official-lyrics" rows="14" placeholder="Cole aqui a letra oficial para comparar com a transcricao..."
-          style="width:100%;padding:10px;border-radius:8px;border:1px solid #E8E0D4;font-size:12px;font-family:inherit;resize:vertical;outline:none;min-height:200px;background:#fff"
+        <textarea id="prod-official-lyrics" rows="16" placeholder="Cole aqui a letra oficial da musica para comparar lado a lado com a transcricao do Whisper..."
+          style="width:100%;padding:10px;border-radius:8px;border:1px solid #E8E0D4;font-size:12px;font-family:inherit;resize:vertical;outline:none;min-height:300px;background:#fff"
         >${escHtml(p.official_lyrics||'')}</textarea>
         <div class="action-row">
           <button class="btn-secondary" onclick="prodSaveOfficialLyrics(${p.id})">Salvar Letra</button>
@@ -1178,13 +1218,18 @@ function renderProdDetail(){
     if(p.youtube_seo){
       const seo = p.youtube_seo;
       html += `<div class="wf-section">
-        <h3>YouTube SEO</h3>
+        <h3>Titulo - Youtube</h3>
         <div class="seo-preview">
           <div class="seo-title">${escHtml(seo.title||'')}</div>
           <div class="seo-desc">${escHtml(seo.description||'')}</div>
-          <div class="seo-tags">${(seo.tags||[]).map(t=>`<span class="seo-tag">${escHtml(t)}</span>`).join('')}</div>
         </div>
       </div>`;
+      if(seo.tags && seo.tags.length){
+        html += `<div class="wf-section">
+          <h3>Tags - Youtube</h3>
+          <div class="seo-tags">${seo.tags.map(t=>`<span class="seo-tag">${escHtml(t)}</span>`).join('')}</div>
+        </div>`;
+      }
     }
   }
 
@@ -1280,14 +1325,13 @@ function renderProdDetail(){
     </div>`;
   }
 
-  // ── Step 7: Export (auto-saved to folder) ──
+  // ── Step 7: Projeto Completo (auto-saved to folder) ──
   if(p.status === 'completed' && p.output_path){
     html += `<div class="wf-section" style="text-align:center">
       <h3>Projeto Completo</h3>
-      <div style="color:#3B8C5C;font-size:14px;font-weight:600;margin-bottom:8px">Todos os arquivos salvos automaticamente na pasta do projeto</div>
-      <div style="font-size:11px;color:#8B8680;margin-bottom:12px">Pasta: ${escHtml(p.output_path)}</div>
-      <button class="btn-secondary" onclick="prodShowFiles(${p.id})">Ver Arquivos</button>
-      <div id="prod-files-list"></div>
+      <div style="color:#3B8C5C;font-size:14px;font-weight:600;margin-bottom:8px">Todos os arquivos foram salvos automaticamente</div>
+      <div style="font-size:11px;color:#8B8680;margin-bottom:4px">${escHtml(p.output_path)}</div>
+      <div id="prod-files-list" style="margin-top:12px"><div style="color:#B5AFA8;font-size:11px">Carregando arquivos...</div></div>
     </div>`;
   }
 

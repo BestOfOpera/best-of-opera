@@ -750,6 +750,7 @@ async def prod_create_project(
     hook: str = Form(""),
     cut_start: float = Form(0),
     cut_end: float = Form(0),
+    language: str = Form("en"),
 ):
     safe_artist = re.sub(r'[<>:"/\\|?*]', '', artist).strip()
     safe_song = re.sub(r'[<>:"/\\|?*]', '', song).strip()
@@ -782,7 +783,7 @@ async def prod_create_project(
         artist=artist, song=song, hook=hook or None,
         cut_start=cut_start, cut_end=cut_end if cut_end > 0 else None,
         video_filename=f"{project_name}.mp4", video_path=str(video_path),
-        duration=duration
+        duration=duration, language=language
     )
     return {"id": pid, "status": "uploaded"}
 
@@ -808,6 +809,17 @@ async def prod_delete_project(project_id: int):
             shutil.rmtree(project_dir, ignore_errors=True)
     db.delete_production_project(project_id)
     return {"ok": True}
+
+
+@app.get("/api/prod/projects/{project_id}/video")
+async def prod_video(project_id: int):
+    proj = db.get_production_project(project_id)
+    if not proj or not proj.get("video_path"):
+        raise HTTPException(404, "Video not found")
+    video_path = Path(proj["video_path"])
+    if not video_path.exists():
+        raise HTTPException(404, "Video file not found on disk")
+    return FileResponse(str(video_path), media_type="video/mp4")
 
 
 @app.get("/api/prod/projects/{project_id}/status")
@@ -855,7 +867,8 @@ async def _bg_transcribe(project_id: int):
         async with httpx.AsyncClient(timeout=300) as client:
             with open(audio_path, "rb") as af:
                 files = {"file": ("audio.wav", af, "audio/wav")}
-                data = {"model": "whisper-1", "response_format": "verbose_json", "language": "en"}
+                whisper_lang = proj.get("language") or "en"
+                data = {"model": "whisper-1", "response_format": "verbose_json", "language": whisper_lang}
                 resp = await client.post(
                     "https://api.openai.com/v1/audio/transcriptions",
                     headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
@@ -919,7 +932,7 @@ CLAUDE_PROMPT = """You are the content producer for "Best of Opera", the #1 Inst
 ARTIST: {artist}
 SONG: {song}
 HOOK/CONTEXT: {hook}
-VIDEO DURATION: {duration}s (overlay from {cut_start}s to {cut_end}s)
+FINAL VIDEO DURATION: {cut_duration}s (the delivered video is already cut, starts at 00:00)
 
 TRANSCRIPTION:
 {transcription}
@@ -931,7 +944,8 @@ Return a JSON object with exactly 3 keys:
    - "end": end time in seconds (float)
    - "text": subtitle text (MAX 70 characters, impactful, emotional)
    Rules:
-   - 4-8 segments covering the video duration
+   - 4-8 segments covering the ENTIRE video from 0.0s to {cut_duration}s
+   - MUST start at 0.0 and end at or near {cut_duration}
    - NOT literal transcription — catchy, emotional, inspiring text
    - Use the hook/context to create powerful storytelling moments
    - Each segment 2-5 seconds long
@@ -995,11 +1009,12 @@ async def _bg_generate(project_id: int):
         duration = proj.get("duration") or 60
         cut_start = proj.get("cut_start") or 0
         cut_end = proj.get("cut_end") or duration
+        cut_duration = round(cut_end - cut_start, 1)
 
         prompt = CLAUDE_PROMPT.format(
             artist=proj["artist"], song=proj["song"],
             hook=proj.get("hook") or "Opera performance",
-            duration=duration, cut_start=cut_start, cut_end=cut_end,
+            cut_duration=cut_duration,
             transcription=proj.get("transcription") or "(no transcription available)"
         )
 
@@ -1074,11 +1089,12 @@ async def _bg_regenerate(project_id: int, regen_type: str):
         duration = proj.get("duration") or 60
         cut_start = proj.get("cut_start") or 0
         cut_end = proj.get("cut_end") or duration
+        cut_duration = round(cut_end - cut_start, 1)
 
         prompt = CLAUDE_PROMPT.format(
             artist=proj["artist"], song=proj["song"],
             hook=proj.get("hook") or "Opera performance",
-            duration=duration, cut_start=cut_start, cut_end=cut_end,
+            cut_duration=cut_duration,
             transcription=proj.get("transcription") or "(no transcription available)"
         )
 

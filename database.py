@@ -157,11 +157,12 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             error_message TEXT,
-            official_lyrics TEXT
+            official_lyrics TEXT,
+            language TEXT DEFAULT 'en'
         )
     """)
     # Add columns for existing databases
-    for col in ["official_lyrics"]:
+    for col in ["official_lyrics", "language"]:
         try:
             c.execute(f"ALTER TABLE production_projects ADD COLUMN IF NOT EXISTS {col} TEXT")
         except Exception:
@@ -500,21 +501,22 @@ def _prod_row_to_dict(r: Dict) -> Dict:
         "updated_at": r["updated_at"].isoformat() if r.get("updated_at") else None,
         "error_message": r.get("error_message"),
         "official_lyrics": r.get("official_lyrics"),
+        "language": r.get("language", "en"),
     }
 
 
 def create_production_project(artist: str, song: str, hook: str = None,
                               cut_start: float = 0, cut_end: float = None,
                               video_filename: str = None, video_path: str = None,
-                              duration: float = None) -> int:
+                              duration: float = None, language: str = "en") -> int:
     conn = _conn()
     c = conn.cursor()
     c.execute("""
         INSERT INTO production_projects
-        (artist, song, hook, cut_start, cut_end, video_filename, video_path, duration)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        (artist, song, hook, cut_start, cut_end, video_filename, video_path, duration, language)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING id
-    """, (artist, song, hook, cut_start, cut_end, video_filename, video_path, duration))
+    """, (artist, song, hook, cut_start, cut_end, video_filename, video_path, duration, language))
     pid = c.fetchone()[0]
     conn.commit()
     conn.close()

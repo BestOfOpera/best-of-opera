@@ -836,14 +836,17 @@ async def _bg_transcribe(project_id: int):
 
         db.update_production_status(project_id, "transcribing")
         video_path = Path(proj["video_path"])
-        audio_path = video_path.parent / "audio.mp3"
+        audio_path = video_path.parent / "audio.wav"
 
-        # Extract audio with FFmpeg
-        cmd = [FFMPEG_BIN, "-y", "-i", str(video_path), "-vn", "-acodec", "libmp3lame",
-               "-ar", "16000", "-ac", "1", "-b:a", "64k", str(audio_path)]
+        # Extract audio with FFmpeg (wav for max compatibility)
+        cmd = [FFMPEG_BIN, "-y", "-i", str(video_path), "-vn",
+               "-ar", "16000", "-ac", "1", "-f", "wav", str(audio_path)]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         if result.returncode != 0:
-            db.update_production_status(project_id, "error", f"FFmpeg audio extraction failed: {result.stderr[:300]}")
+            # Get the actual error (skip version header)
+            err_lines = [l for l in result.stderr.split("\n") if l.strip() and not l.startswith("  ")]
+            err_msg = "\n".join(err_lines[-5:])  # last 5 meaningful lines
+            db.update_production_status(project_id, "error", f"FFmpeg audio extraction failed: {err_msg[:400]}")
             return
 
         if not OPENAI_API_KEY:
@@ -853,7 +856,7 @@ async def _bg_transcribe(project_id: int):
         # Send to Whisper API
         async with httpx.AsyncClient(timeout=300) as client:
             with open(audio_path, "rb") as af:
-                files = {"file": ("audio.mp3", af, "audio/mpeg")}
+                files = {"file": ("audio.wav", af, "audio/wav")}
                 data = {"model": "whisper-1", "response_format": "verbose_json", "language": "en"}
                 resp = await client.post(
                     "https://api.openai.com/v1/audio/transcriptions",

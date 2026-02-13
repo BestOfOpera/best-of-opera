@@ -156,9 +156,16 @@ def init_db():
             output_path TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            error_message TEXT
+            error_message TEXT,
+            official_lyrics TEXT
         )
     """)
+    # Add columns for existing databases
+    for col in ["official_lyrics"]:
+        try:
+            c.execute(f"ALTER TABLE production_projects ADD COLUMN IF NOT EXISTS {col} TEXT")
+        except Exception:
+            pass
 
     conn.commit()
     conn.close()
@@ -492,6 +499,7 @@ def _prod_row_to_dict(r: Dict) -> Dict:
         "created_at": r["created_at"].isoformat() if r.get("created_at") else None,
         "updated_at": r["updated_at"].isoformat() if r.get("updated_at") else None,
         "error_message": r.get("error_message"),
+        "official_lyrics": r.get("official_lyrics"),
     }
 
 
@@ -629,6 +637,18 @@ def update_production_output(project_id: int, output_path: str):
         SET output_path = %s, status = 'completed', updated_at = CURRENT_TIMESTAMP
         WHERE id = %s
     """, (output_path, project_id))
+    conn.commit()
+    conn.close()
+
+
+def update_production_official_lyrics(project_id: int, official_lyrics: str):
+    conn = _conn()
+    c = conn.cursor()
+    c.execute("""
+        UPDATE production_projects
+        SET official_lyrics = %s, updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
+    """, (official_lyrics, project_id))
     conn.commit()
     conn.close()
 

@@ -499,7 +499,7 @@ const STATUS_TO_STEP = {
   'processing':5, 'completed':6, 'error':-1
 };
 const WORKING_STATUSES = ['transcribing','generating','translating','processing'];
-const LANG_NAMES = {en:'English',pt:'Portugues',es:'Espanol',fr:'Francais',de:'Deutsch',it:'Italiano',ja:'Japanese'};
+const LANG_NAMES = {en:'English',pt:'Portugues',es:'Espanol',fr:'Francais',de:'Deutsch',it:'Italiano',pl:'Polski'};
 
 async function loadProdProjects(){
   try{
@@ -594,6 +594,33 @@ async function prodGenerate(id){
   }catch(e){ alert(`Erro: ${e.message}`); }
 }
 
+async function prodRegenerateOverlay(id){
+  try{
+    await apiPost(`${API}/api/prod/projects/${id}/regenerate-overlay`);
+    state.prodProject.status = 'generating';
+    startPollingIfNeeded();
+    render();
+  }catch(e){ alert(`Erro: ${e.message}`); }
+}
+
+async function prodRegeneratePost(id){
+  try{
+    await apiPost(`${API}/api/prod/projects/${id}/regenerate-post`);
+    state.prodProject.status = 'generating';
+    startPollingIfNeeded();
+    render();
+  }catch(e){ alert(`Erro: ${e.message}`); }
+}
+
+async function prodSaveOfficialLyrics(id){
+  const el = document.getElementById('prod-official-lyrics');
+  if(!el) return;
+  try{
+    await apiPut(`${API}/api/prod/projects/${id}/official-lyrics`, {official_lyrics: el.value});
+    state.prodProject.official_lyrics = el.value;
+  }catch(e){ alert(`Erro: ${e.message}`); }
+}
+
 async function prodApproveOverlay(id){
   const rows = document.querySelectorAll('.overlay-row');
   const overlay = [];
@@ -669,8 +696,28 @@ async function prodProcess(id){
   }catch(e){ alert(`Erro: ${e.message}`); }
 }
 
-function prodExport(id){
-  window.open(`${API}/api/prod/projects/${id}/export`, '_blank');
+async function prodShowFiles(id){
+  const el = document.getElementById('prod-files-list');
+  if(!el) return;
+  try{
+    const data = await apiCall(`${API}/api/prod/projects/${id}/export`);
+    const files = data.files || [];
+    if(!files.length){ el.innerHTML = '<div style="color:#8B8680;font-size:11px;margin-top:8px">Nenhum arquivo encontrado</div>'; return; }
+    let h = `<div style="margin-top:12px;text-align:left;background:#FDF6EE;border-radius:8px;padding:10px">
+      <div style="font-size:11px;font-weight:600;color:#8B6914;margin-bottom:6px">${data.project_name} — ${files.length} arquivos</div>`;
+    for(const f of files){
+      const sizeKB = Math.round(f.size/1024);
+      const sizeStr = sizeKB > 1024 ? (sizeKB/1024).toFixed(1)+' MB' : sizeKB+' KB';
+      h += `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:11px;border-bottom:1px solid #E8E0D430">
+        <span style="color:#2D2A26">${escHtml(f.path)}</span>
+        <span style="color:#B5AFA8">${sizeStr}</span>
+      </div>`;
+    }
+    h += `</div>`;
+    el.innerHTML = h;
+  }catch(e){
+    el.innerHTML = `<div style="color:#D4483B;font-size:11px;margin-top:8px">Erro: ${e.message}</div>`;
+  }
 }
 
 // ─── POLLING ───
@@ -1022,11 +1069,42 @@ function renderProdDetail(){
     html += `<div class="wf-section">
       <h3>Transcricao</h3>`;
     if(p.transcription){
-      html += `<textarea id="prod-transcription" rows="6">${escHtml(p.transcription)}</textarea>
+      // Two-column layout: transcription with timestamps + official lyrics
+      html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`;
+      // Left: transcription with timestamps from segments
+      html += `<div>
+        <div style="font-size:11px;font-weight:600;color:#8B8680;margin-bottom:4px">Transcricao (Whisper)</div>`;
+      const segs = p.transcription_segments || [];
+      if(segs.length > 0){
+        html += `<div style="background:#FDF6EE;border:1px solid #E8E0D4;border-radius:8px;padding:8px;max-height:300px;overflow-y:auto;font-size:12px">`;
+        for(const seg of segs){
+          const mm1 = Math.floor((seg.start||0)/60); const ss1 = Math.floor((seg.start||0)%60);
+          const mm2 = Math.floor((seg.end||0)/60); const ss2 = Math.floor((seg.end||0)%60);
+          const ts = mm1+':'+String(ss1).padStart(2,'0')+' - '+mm2+':'+String(ss2).padStart(2,'0');
+          html += `<div style="padding:3px 0;border-bottom:1px solid #F0EBE3">
+            <span style="color:#C9A84C;font-size:10px;font-weight:600;margin-right:6px">[${ts}]</span>
+            <span style="color:#2D2A26">${escHtml(seg.text||'')}</span>
+          </div>`;
+        }
+        html += `</div>`;
+      }
+      html += `<textarea id="prod-transcription" rows="4" style="margin-top:8px">${escHtml(p.transcription)}</textarea>
         <div class="action-row">
           <button class="btn-secondary" onclick="prodSaveTranscription(${p.id})">Salvar Edicao</button>
           ${canTranscribe?`<button class="btn-secondary" onclick="prodTranscribe(${p.id})">Re-transcrever</button>`:''}
-        </div>`;
+        </div>
+      </div>`;
+      // Right: official lyrics panel
+      html += `<div>
+        <div style="font-size:11px;font-weight:600;color:#8B8680;margin-bottom:4px">Letra Oficial (referencia)</div>
+        <textarea id="prod-official-lyrics" rows="14" placeholder="Cole aqui a letra oficial para comparar com a transcricao..."
+          style="width:100%;padding:10px;border-radius:8px;border:1px solid #E8E0D4;font-size:12px;font-family:inherit;resize:vertical;outline:none;min-height:200px;background:#fff"
+        >${escHtml(p.official_lyrics||'')}</textarea>
+        <div class="action-row">
+          <button class="btn-secondary" onclick="prodSaveOfficialLyrics(${p.id})">Salvar Letra</button>
+        </div>
+      </div>`;
+      html += `</div>`; // close grid
     } else if(p.status === 'transcribing'){
       html += `<div class="loader"><div style="color:#C9A84C;font-size:12px;margin-bottom:6px">Transcrevendo com Whisper...</div><div class="loader-bar"><div class="loader-fill"></div></div></div>`;
     } else {
@@ -1046,7 +1124,7 @@ function renderProdDetail(){
       // Show generated content summary
       html += `<div style="color:#3B8C5C;font-size:12px;margin-bottom:8px">Conteudo gerado com sucesso</div>`;
       if(canGenerate){
-        html += `<button class="btn-secondary" onclick="prodGenerate(${p.id})">Re-gerar Conteudo</button>`;
+        html += `<button class="btn-secondary" onclick="prodGenerate(${p.id})">Re-gerar Tudo</button>`;
       }
     } else {
       html += `<button class="btn-primary" onclick="prodGenerate(${p.id})" style="width:auto;padding:10px 24px" ${!canGenerate?'disabled':''}>Gerar Conteudo</button>`;
@@ -1076,6 +1154,7 @@ function renderProdDetail(){
     html += `</tbody></table>
       <div class="action-row">
         <button class="btn-secondary" onclick="prodSaveOverlay(${p.id})">Salvar</button>
+        <button class="btn-secondary" onclick="prodRegenerateOverlay(${p.id})" style="border-color:#C9A84C60;color:#8B6914">Regerar Overlay</button>
         ${!p.overlay_approved?`<button class="btn-approve" onclick="prodApproveOverlay(${p.id})">Aprovar Overlay</button>`:`<span style="color:#3B8C5C;font-size:12px;font-weight:600">Aprovado</span>`}
       </div>
     </div>`;
@@ -1089,6 +1168,7 @@ function renderProdDetail(){
       <div class="char-count" id="post-char-count">${(p.post_text||'').length} chars (ideal: 1400-1900)</div>
       <div class="action-row">
         <button class="btn-secondary" onclick="prodSavePost(${p.id})">Salvar</button>
+        <button class="btn-secondary" onclick="prodRegeneratePost(${p.id})" style="border-color:#C9A84C60;color:#8B6914">Regerar Post</button>
         ${!p.post_approved?`<button class="btn-approve" onclick="prodApprovePost(${p.id})">Aprovar Post</button>`:`<span style="color:#3B8C5C;font-size:12px;font-weight:600">Aprovado</span>`}
       </div>
     </div>`;
@@ -1124,15 +1204,31 @@ function renderProdDetail(){
     html += `</div>`;
     const tData = p.translations[state.prodLangTab];
     if(tData){
-      // Overlay preview
+      // 1. Overlay subtitles preview
       if(tData.overlay && tData.overlay.length){
-        html += `<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:600;color:#8B8680;margin-bottom:4px">Overlay (${state.prodLangTab})</div>`;
+        html += `<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:600;color:#8B6914;margin-bottom:4px">1. Overlay (${state.prodLangTab})</div>`;
         for(const sub of tData.overlay){
           html += `<div style="font-size:11px;color:#2D2A26;padding:3px 0;border-bottom:1px solid #F0EBE3">
             <span style="color:#B5AFA8;font-size:10px">${sub.start?.toFixed(1)}s-${sub.end?.toFixed(1)}s</span> ${escHtml(sub.text)}
           </div>`;
         }
         html += `</div>`;
+      }
+      // 2. Lyrics subtitles preview (translated lyrics)
+      if(tData.lyrics && tData.lyrics.length){
+        html += `<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:600;color:#3B6DD4;margin-bottom:4px">2. Letra Traduzida (${state.prodLangTab})</div>`;
+        for(const seg of tData.lyrics){
+          const mm1 = Math.floor((seg.start||0)/60); const ss1 = Math.floor((seg.start||0)%60);
+          const mm2 = Math.floor((seg.end||0)/60); const ss2 = Math.floor((seg.end||0)%60);
+          html += `<div style="font-size:11px;color:#2D2A26;padding:3px 0;border-bottom:1px solid #F0EBE3">
+            <span style="color:#B5AFA8;font-size:10px">[${mm1}:${String(ss1).padStart(2,'0')}-${mm2}:${String(ss2).padStart(2,'0')}]</span> ${escHtml(seg.text)}
+          </div>`;
+        }
+        html += `</div>`;
+      }
+      // 3. Original lyrics note
+      if(state.prodLangTab !== 'en' && tData.lyrics && tData.lyrics.length){
+        html += `<div style="font-size:10px;color:#B5AFA8;margin-bottom:10px;font-style:italic">+ Legenda "lyrics_original.srt" com a letra no idioma original</div>`;
       }
       // Post preview
       if(tData.post){
@@ -1169,7 +1265,7 @@ function renderProdDetail(){
   if(p.status === 'processing'){
     html += `<div class="wf-section">
       <h3>Processamento</h3>
-      <div class="loader"><div style="color:#C9A84C;font-size:12px;margin-bottom:6px">Gerando SRTs, cortando video, montando ZIP...</div><div class="loader-bar"><div class="loader-fill"></div></div></div>
+      <div class="loader"><div style="color:#C9A84C;font-size:12px;margin-bottom:6px">Gerando 3 tipos de legendas, cortando video, salvando na pasta...</div><div class="loader-bar"><div class="loader-fill"></div></div></div>
     </div>`;
   } else if(['translated','completed','error'].includes(p.status) && p.translations){
     html += `<div class="wf-section">
@@ -1183,11 +1279,14 @@ function renderProdDetail(){
     </div>`;
   }
 
-  // ── Step 7: Export ──
+  // ── Step 7: Export (auto-saved to folder) ──
   if(p.status === 'completed' && p.output_path){
     html += `<div class="wf-section" style="text-align:center">
-      <h3>Export</h3>
-      <button class="btn-primary" onclick="prodExport(${p.id})" style="width:auto;padding:14px 32px;font-size:16px">Baixar ZIP</button>
+      <h3>Projeto Completo</h3>
+      <div style="color:#3B8C5C;font-size:14px;font-weight:600;margin-bottom:8px">Todos os arquivos salvos automaticamente na pasta do projeto</div>
+      <div style="font-size:11px;color:#8B8680;margin-bottom:12px">Pasta: ${escHtml(p.output_path)}</div>
+      <button class="btn-secondary" onclick="prodShowFiles(${p.id})">Ver Arquivos</button>
+      <div id="prod-files-list"></div>
     </div>`;
   }
 

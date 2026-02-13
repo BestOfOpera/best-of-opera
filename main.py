@@ -28,8 +28,8 @@ APP_PASSWORD = os.getenv("APP_PASSWORD", "opera2026")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 GOOGLE_TRANSLATE_API_KEY = os.getenv("GOOGLE_TRANSLATE_API_KEY", "").strip()
-PRODUCTION_DIR = Path("/tmp/best-of-opera-production")
-PRODUCTION_DIR.mkdir(parents=True, exist_ok=True)
+PROJECTS_DIR = Path("/tmp/best-of-opera-projects")
+PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Find ffmpeg binary — use imageio-ffmpeg (ships static ffmpeg binary)
 try:
@@ -661,18 +661,22 @@ async def quota_register(search_calls: int = Query(0), detail_calls: int = Query
 async def download_video(video_id: str, artist: str = Query("Unknown"), song: str = Query("Video")):
     safe_artist = sanitize_filename(artist)
     safe_song = sanitize_filename(song)
-    filename = f"{safe_artist} - {safe_song}.mp4"
+    project_name = f"{safe_artist} - {safe_song}"
+    filename = f"{project_name}.mp4"
     youtube_url = f"https://www.youtube.com/watch?v={video_id}"
 
-    tmp_dir = tempfile.mkdtemp()
-    tmp_path = os.path.join(tmp_dir, filename)
+    # Save to shared project folder (App1 + App2 share the same folder)
+    project_dir = PROJECTS_DIR / project_name
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "video").mkdir(exist_ok=True)
+    dl_path = str(project_dir / "video" / filename)
 
     async with download_semaphore:
         try:
             import yt_dlp
             ydl_opts = {
                 'format': 'best[ext=mp4]/best',
-                'outtmpl': tmp_path,
+                'outtmpl': dl_path,
                 'noplaylist': True,
                 'quiet': True,
                 'no_warnings': True,
@@ -684,15 +688,15 @@ async def download_video(video_id: str, artist: str = Query("Unknown"), song: st
                     ydl.download([youtube_url])
             await asyncio.to_thread(_download)
 
-            if not os.path.exists(tmp_path):
-                import glob
-                files = glob.glob(os.path.join(tmp_dir, '*'))
+            if not os.path.exists(dl_path):
+                import glob as _glob
+                files = _glob.glob(str(project_dir / "video" / '*'))
                 if files:
-                    tmp_path_actual = files[0]
+                    dl_path_actual = files[0]
                 else:
                     raise HTTPException(500, "Download failed: output file not found")
             else:
-                tmp_path_actual = tmp_path
+                dl_path_actual = dl_path
 
             try:
                 db.save_download(video_id, filename, artist, song, youtube_url)
@@ -700,13 +704,9 @@ async def download_video(video_id: str, artist: str = Query("Unknown"), song: st
                 print(f"⚠️ Failed to save download record: {e}")
 
             def iter_file():
-                try:
-                    with open(tmp_path_actual, 'rb') as f:
-                        while chunk := f.read(1024 * 1024):
-                            yield chunk
-                finally:
-                    import shutil
-                    shutil.rmtree(tmp_dir, ignore_errors=True)
+                with open(dl_path_actual, 'rb') as f:
+                    while chunk := f.read(1024 * 1024):
+                        yield chunk
 
             return StreamingResponse(
                 iter_file(), media_type="video/mp4",
@@ -715,8 +715,6 @@ async def download_video(video_id: str, artist: str = Query("Unknown"), song: st
         except HTTPException:
             raise
         except Exception as e:
-            import shutil
-            shutil.rmtree(tmp_dir, ignore_errors=True)
             print(f"❌ Download error for {video_id}: {e}")
             raise HTTPException(500, f"Download failed: {str(e)}")
 
@@ -735,8 +733,8 @@ async def export_downloads():
 # APP2 — PRODUCTION MODULE ENDPOINTS
 # ══════════════════════════════════════════════════════════════
 
-PROD_LANGUAGES = ["en", "pt", "es", "fr", "de", "it", "ja"]
-LANG_NAMES = {"en": "English", "pt": "Portugues", "es": "Espanol", "fr": "Francais", "de": "Deutsch", "it": "Italiano", "ja": "Japanese"}
+PROD_LANGUAGES = ["en", "pt", "es", "fr", "de", "it", "pl"]
+LANG_NAMES = {"en": "English", "pt": "Portugues", "es": "Espanol", "fr": "Francais", "de": "Deutsch", "it": "Italiano", "pl": "Polski"}
 
 
 @app.get("/api/prod/projects")
@@ -753,11 +751,14 @@ async def prod_create_project(
     cut_start: float = Form(0),
     cut_end: float = Form(0),
 ):
-    project_dir = PRODUCTION_DIR / f"proj_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    safe_artist = re.sub(r'[<>:"/\\|?*]', '', artist).strip()
+    safe_song = re.sub(r'[<>:"/\\|?*]', '', song).strip()
+    project_name = f"{safe_artist} - {safe_song}"
+    project_dir = PROJECTS_DIR / project_name
     project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "video").mkdir(exist_ok=True)
 
-    safe_name = re.sub(r'[<>:"/\\|?*]', '', video.filename or "video.mp4")
-    video_path = project_dir / safe_name
+    video_path = project_dir / "video" / f"{project_name}.mp4"
     with open(video_path, "wb") as f:
         content = await video.read()
         f.write(content)
@@ -799,15 +800,12 @@ async def prod_delete_project(project_id: int):
     proj = db.get_production_project(project_id)
     if not proj:
         raise HTTPException(404, "Project not found")
-    # Clean up files
+    # Clean up project folder
     if proj.get("video_path"):
-        video_dir = Path(proj["video_path"]).parent
-        if video_dir.exists() and str(video_dir).startswith(str(PRODUCTION_DIR)):
-            shutil.rmtree(video_dir, ignore_errors=True)
-    if proj.get("output_path"):
-        out = Path(proj["output_path"])
-        if out.exists():
-            out.unlink(missing_ok=True)
+        video_file = Path(proj["video_path"])
+        project_dir = video_file.parent.parent  # video is in project_dir/video/
+        if project_dir.exists() and str(project_dir).startswith(str(PROJECTS_DIR)):
+            shutil.rmtree(project_dir, ignore_errors=True)
     db.delete_production_project(project_id)
     return {"ok": True}
 
@@ -903,49 +901,76 @@ async def prod_update_transcription(project_id: int, body: dict = Body(...)):
     return {"ok": True}
 
 
+# ─── OFFICIAL LYRICS ───
+
+@app.put("/api/prod/projects/{project_id}/official-lyrics")
+async def prod_update_official_lyrics(project_id: int, body: dict = Body(...)):
+    proj = db.get_production_project(project_id)
+    if not proj:
+        raise HTTPException(404, "Project not found")
+    db.update_production_official_lyrics(project_id, body.get("official_lyrics", ""))
+    return {"ok": True}
+
+
 # ─── CONTENT GENERATION (Claude) ───
 
-CLAUDE_PROMPT = """You are a social media content producer for "Best of Opera", the #1 Instagram page for opera and classical music content (750K followers). You must generate content for a video post.
+CLAUDE_PROMPT = """You are the content producer for "Best of Opera", the #1 Instagram page for opera and classical music (750K followers). Generate content for a video post.
 
 ARTIST: {artist}
 SONG: {song}
 HOOK/CONTEXT: {hook}
-VIDEO DURATION: {duration}s (overlay will be shown from {cut_start}s to {cut_end}s)
+VIDEO DURATION: {duration}s (overlay from {cut_start}s to {cut_end}s)
 
 TRANSCRIPTION:
 {transcription}
 
-Generate a JSON object with exactly 3 keys:
+Return a JSON object with exactly 3 keys:
 
-1. "overlay" — Array of subtitle objects for the video overlay. Each object has:
+1. "overlay" — Array of subtitle objects for the video overlay. Each has:
    - "start": start time in seconds (float)
    - "end": end time in seconds (float)
-   - "text": the subtitle text (MAX 70 characters per line, impactful, emotional)
-   Rules for overlay:
-   - 4-8 subtitle segments covering the video duration
-   - Text should be catchy, emotional, inspiring — NOT a literal transcription
-   - Use the hook/context to create powerful moments
+   - "text": subtitle text (MAX 70 characters, impactful, emotional)
+   Rules:
+   - 4-8 segments covering the video duration
+   - NOT literal transcription — catchy, emotional, inspiring text
+   - Use the hook/context to create powerful storytelling moments
    - Each segment 2-5 seconds long
    - English language
 
-2. "post" — Instagram post text (1400-1900 characters) with this structure:
-   - Line 1: Hook phrase with emoji (attention-grabbing)
-   - Line 2-3: Context about the artist/performance
-   - Line 4-6: Emotional storytelling about this specific moment
-   - Line 7-8: Call to action / engagement question
-   - Line 9+: Hashtags (15-20 relevant hashtags)
+2. "post" — Instagram post text (1400-1900 characters total). MUST follow this EXACT structure with 5 blocks separated by blank lines:
+
+   BLOCK 1 — HOOK (1 line):
+   An emoji followed by a powerful, attention-grabbing one-liner about the performance. Must stop the scroll.
+
+   BLOCK 2 — ARTIST CONTEXT (2-3 lines):
+   Who is this artist and why they matter in the world of opera/classical music. Their legacy, achievements, or unique qualities.
+
+   BLOCK 3 — PERFORMANCE DESCRIPTION (3-4 lines):
+   Vivid, emotional storytelling about THIS specific performance. What happens, the emotion, the goosebumps moment. Make the reader feel like they are there.
+
+   BLOCK 4 — CULTURAL NOTE (1-2 lines):
+   A historical insight, fun fact, or cultural significance about the piece, the venue, or the moment.
+
+   BLOCK 5 — ENGAGEMENT + CTA (2-3 lines):
+   An engaging question that invites comments.
+   Then: "Follow @bestofopera for the most beautiful moments in opera and classical music"
+
+   BLOCK 6 — HASHTAGS (1 block):
+   15-20 relevant hashtags including #opera #classicalmusic #bestofopera and artist/song specific ones.
+
    Rules:
-   - Mix English with occasional Italian/musical terms
-   - Use emojis sparingly but effectively
-   - Create a sense of wonder and beauty
-   - Tag @bestofopera
+   - Each block separated by a blank line (\\n\\n)
+   - Use emojis sparingly (1-2 per block max)
+   - Mix English with occasional Italian musical terms (bel canto, aria, etc.)
+   - Tone: wonder, beauty, emotion, grandeur
+   - MUST be 1400-1900 characters total
 
 3. "seo" — YouTube SEO object with:
-   - "title": YouTube title (50-70 chars, includes artist + song + emotional hook)
-   - "description": YouTube description (300-500 chars, keywords-rich)
-   - "tags": Array of 15-20 tags for YouTube
+   - "title": YouTube title (50-70 chars, artist + song + emotional hook)
+   - "description": YouTube description (300-500 chars, keyword-rich)
+   - "tags": Array of 15-20 YouTube tags
 
-Return ONLY the JSON object, no markdown, no explanation."""
+Return ONLY valid JSON, no markdown wrapping, no explanation."""
 
 
 async def _bg_generate(project_id: int):
@@ -1026,6 +1051,102 @@ async def prod_generate(project_id: int, background_tasks: BackgroundTasks):
     return {"status": "generating"}
 
 
+# ─── REGENERATE (overlay only or post only) ───
+
+async def _bg_regenerate(project_id: int, regen_type: str):
+    """Regenerate only overlay or only post, keeping the other unchanged."""
+    try:
+        proj = db.get_production_project(project_id)
+        if not proj:
+            db.update_production_status(project_id, "error", "Project not found")
+            return
+
+        if not ANTHROPIC_API_KEY:
+            db.update_production_status(project_id, "error", "ANTHROPIC_API_KEY not configured")
+            return
+
+        duration = proj.get("duration") or 60
+        cut_start = proj.get("cut_start") or 0
+        cut_end = proj.get("cut_end") or duration
+
+        prompt = CLAUDE_PROMPT.format(
+            artist=proj["artist"], song=proj["song"],
+            hook=proj.get("hook") or "Opera performance",
+            duration=duration, cut_start=cut_start, cut_end=cut_end,
+            transcription=proj.get("transcription") or "(no transcription available)"
+        )
+
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": ANTHROPIC_API_KEY,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": "claude-sonnet-4-20250514",
+                    "max_tokens": 4096,
+                    "messages": [{"role": "user", "content": prompt}]
+                }
+            )
+            if resp.status_code != 200:
+                db.update_production_status(project_id, "error", f"Claude API error: {resp.text[:300]}")
+                return
+
+            response_data = resp.json()
+            text_content = response_data["content"][0]["text"]
+            json_text = text_content.strip()
+            if json_text.startswith("```"):
+                json_text = re.sub(r'^```(?:json)?\s*', '', json_text)
+                json_text = re.sub(r'\s*```$', '', json_text)
+            content = json.loads(json_text)
+
+        if regen_type == "overlay":
+            overlay = content.get("overlay", [])
+            db.update_production_overlay(project_id, overlay, False)
+        elif regen_type == "post":
+            post_text = content.get("post", "")
+            seo = content.get("seo", {})
+            db.update_production_post(project_id, post_text, False)
+            # Also update SEO since it's related to post
+            conn = db._conn()
+            c = conn.cursor()
+            c.execute("UPDATE production_projects SET youtube_seo = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+                      (json.dumps(seo), project_id))
+            conn.commit()
+            conn.close()
+
+        db.update_production_status(project_id, "generated")
+
+    except json.JSONDecodeError as e:
+        db.update_production_status(project_id, "error", f"Failed to parse Claude response: {str(e)[:200]}")
+    except Exception as e:
+        db.update_production_status(project_id, "error", f"Regeneration failed: {str(e)[:300]}")
+
+
+@app.post("/api/prod/projects/{project_id}/regenerate-overlay")
+async def prod_regenerate_overlay(project_id: int, background_tasks: BackgroundTasks):
+    proj = db.get_production_project(project_id)
+    if not proj:
+        raise HTTPException(404, "Project not found")
+    if not proj.get("overlay_subtitles"):
+        raise HTTPException(400, "Generate content first")
+    background_tasks.add_task(_bg_regenerate, project_id, "overlay")
+    return {"status": "generating"}
+
+
+@app.post("/api/prod/projects/{project_id}/regenerate-post")
+async def prod_regenerate_post(project_id: int, background_tasks: BackgroundTasks):
+    proj = db.get_production_project(project_id)
+    if not proj:
+        raise HTTPException(404, "Project not found")
+    if not proj.get("post_text"):
+        raise HTTPException(400, "Generate content first")
+    background_tasks.add_task(_bg_regenerate, project_id, "post")
+    return {"status": "generating"}
+
+
 # ─── APPROVAL ───
 
 @app.put("/api/prod/projects/{project_id}/overlay")
@@ -1098,12 +1219,14 @@ async def _bg_translate(project_id: int):
         overlay = proj.get("overlay_subtitles") or []
         post_text = proj.get("post_text") or ""
         seo = proj.get("youtube_seo") or {}
+        lyrics_segments = proj.get("transcription_segments") or []
 
         target_langs = [l for l in PROD_LANGUAGES if l != "en"]
         translations = {"en": {
             "overlay": overlay,
             "post": post_text,
             "seo": seo,
+            "lyrics": lyrics_segments,
         }}
 
         async with httpx.AsyncClient(timeout=60) as client:
@@ -1115,6 +1238,14 @@ async def _bg_translate(project_id: int):
                         translated_text = await _google_translate(sub.get("text", ""), lang, client)
                         translated_overlay.append({
                             "start": sub["start"], "end": sub["end"], "text": translated_text
+                        })
+
+                    # Translate lyrics/transcription segments
+                    translated_lyrics = []
+                    for seg in lyrics_segments:
+                        translated_text = await _google_translate(seg.get("text", ""), lang, client)
+                        translated_lyrics.append({
+                            "start": seg["start"], "end": seg["end"], "text": translated_text
                         })
 
                     # Translate post
@@ -1132,10 +1263,11 @@ async def _bg_translate(project_id: int):
                         "overlay": translated_overlay,
                         "post": translated_post,
                         "seo": translated_seo,
+                        "lyrics": translated_lyrics,
                     }
                 except Exception as e:
                     print(f"⚠️ Translation error for {lang}: {e}")
-                    translations[lang] = {"overlay": overlay, "post": post_text, "seo": seo}
+                    translations[lang] = {"overlay": overlay, "post": post_text, "seo": seo, "lyrics": lyrics_segments}
 
         db.update_production_translations(project_id, translations)
 
@@ -1195,69 +1327,60 @@ async def _bg_process(project_id: int):
         song = proj["song"]
         safe_name = re.sub(r'[<>:"/\\|?*]', '', f"{artist} - {song}")
 
-        output_dir = video_path.parent / safe_name
-        output_dir.mkdir(parents=True, exist_ok=True)
-        (output_dir / "video").mkdir(exist_ok=True)
-        (output_dir / "subtitles").mkdir(exist_ok=True)
-        (output_dir / "posts").mkdir(exist_ok=True)
-        (output_dir / "seo").mkdir(exist_ok=True)
+        # Use the shared project folder (Artist - Song)
+        project_dir = video_path.parent.parent  # video is in project_dir/video/
+        (project_dir / "subtitles").mkdir(exist_ok=True)
+        (project_dir / "posts").mkdir(exist_ok=True)
+        (project_dir / "seo").mkdir(exist_ok=True)
 
-        # Generate SRT files for all languages
+        # Generate 3 types of SRT files for all languages
+        lyrics_segments = proj.get("transcription_segments") or []
+
         for lang, data in translations.items():
+            # 1. Overlay SRTs (catchy emotional text)
             overlay = data.get("overlay", [])
             srt_content = _generate_srt(overlay)
-            srt_path = output_dir / "subtitles" / f"overlay_{lang}.srt"
+            srt_path = project_dir / "subtitles" / f"overlay_{lang}.srt"
             srt_path.write_text(srt_content, encoding="utf-8")
 
+            # 2. Lyrics SRTs (translated lyrics from transcription)
+            lyrics = data.get("lyrics", [])
+            if lyrics:
+                lyrics_srt = _generate_srt(lyrics)
+                lyrics_path = project_dir / "subtitles" / f"lyrics_{lang}.srt"
+                lyrics_path.write_text(lyrics_srt, encoding="utf-8")
+
             # Save post text
-            post_path = output_dir / "posts" / f"post_{lang}.txt"
+            post_path = project_dir / "posts" / f"post_{lang}.txt"
             post_path.write_text(data.get("post", ""), encoding="utf-8")
 
             # Save SEO JSON
-            seo_path = output_dir / "seo" / f"seo_{lang}.json"
+            seo_path = project_dir / "seo" / f"seo_{lang}.json"
             seo_path.write_text(json.dumps(data.get("seo", {}), indent=2, ensure_ascii=False), encoding="utf-8")
+
+        # 3. Original lyrics SRT (always in original language, from transcription)
+        if lyrics_segments:
+            original_lyrics_srt = _generate_srt(lyrics_segments)
+            orig_path = project_dir / "subtitles" / "lyrics_original.srt"
+            orig_path.write_text(original_lyrics_srt, encoding="utf-8")
 
         # Cut video if needed
         cut_start = proj.get("cut_start") or 0
         cut_end = proj.get("cut_end")
-        cut_video_path = output_dir / "video" / f"{safe_name}.mp4"
+        cut_video_path = project_dir / "video" / f"{safe_name}.mp4"
 
-        ffmpeg_cmd = [FFMPEG_BIN, "-y", "-i", str(video_path)]
-        if cut_start > 0:
-            ffmpeg_cmd += ["-ss", str(cut_start)]
-        if cut_end:
-            ffmpeg_cmd += ["-to", str(cut_end)]
-
-        # Burn English subtitles
-        en_srt = output_dir / "subtitles" / "overlay_en.srt"
-        if en_srt.exists():
-            # Escape path for FFmpeg subtitles filter
-            srt_escaped = str(en_srt).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
-            ffmpeg_cmd += ["-vf", f"subtitles='{srt_escaped}':force_style='FontSize=24,PrimaryColour=&Hffffff&,OutlineColour=&H000000&,Outline=2,Bold=1'"]
-
-        ffmpeg_cmd += ["-c:a", "copy", str(cut_video_path)]
-
-        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True, timeout=300)
-        if result.returncode != 0:
-            # Fallback: copy without subtitles if subtitle burning fails
-            print(f"⚠️ Subtitle burn failed, copying plain video: {result.stderr[:200]}")
-            ffmpeg_fallback = [FFMPEG_BIN, "-y", "-i", str(video_path)]
+        # Only process if source != destination
+        if str(video_path) != str(cut_video_path) or cut_start > 0 or cut_end:
+            ffmpeg_cmd = [FFMPEG_BIN, "-y", "-i", str(video_path)]
             if cut_start > 0:
-                ffmpeg_fallback += ["-ss", str(cut_start)]
+                ffmpeg_cmd += ["-ss", str(cut_start)]
             if cut_end:
-                ffmpeg_fallback += ["-to", str(cut_end)]
-            ffmpeg_fallback += ["-c", "copy", str(cut_video_path)]
-            subprocess.run(ffmpeg_fallback, capture_output=True, text=True, timeout=300)
+                ffmpeg_cmd += ["-to", str(cut_end)]
+            ffmpeg_cmd += ["-c", "copy", str(cut_video_path)]
+            subprocess.run(ffmpeg_cmd, capture_output=True, text=True, timeout=300)
 
-        # Create ZIP
-        zip_path = video_path.parent / f"{safe_name}.zip"
-        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            for file_path in output_dir.rglob("*"):
-                if file_path.is_file():
-                    arcname = f"{safe_name}/{file_path.relative_to(output_dir)}"
-                    zf.write(file_path, arcname)
-
-        db.update_production_output(project_id, str(zip_path))
+        # Auto-save: files are already in the project folder, no ZIP needed
+        db.update_production_output(project_id, str(project_dir))
 
     except Exception as e:
         print(f"❌ Processing error for project {project_id}: {e}")
@@ -1275,7 +1398,7 @@ async def prod_process(project_id: int, background_tasks: BackgroundTasks):
     return {"status": "processing"}
 
 
-# ─── EXPORT ───
+# ─── EXPORT (folder listing) ───
 
 @app.get("/api/prod/projects/{project_id}/export")
 async def prod_export(project_id: int):
@@ -1284,15 +1407,24 @@ async def prod_export(project_id: int):
         raise HTTPException(404, "Project not found")
     if not proj.get("output_path"):
         raise HTTPException(400, "Project not yet processed")
-    zip_path = Path(proj["output_path"])
-    if not zip_path.exists():
-        raise HTTPException(404, "ZIP file not found on disk")
+    output_dir = Path(proj["output_path"])
+    if not output_dir.exists():
+        raise HTTPException(404, "Project folder not found on disk")
+    # Return folder contents listing
+    files = []
+    for f in sorted(output_dir.rglob("*")):
+        if f.is_file():
+            files.append({
+                "path": str(f.relative_to(output_dir)),
+                "size": f.stat().st_size,
+            })
     safe_name = re.sub(r'[<>:"/\\|?*]', '', f"{proj['artist']} - {proj['song']}")
-    return FileResponse(
-        path=str(zip_path),
-        media_type="application/zip",
-        filename=f"{safe_name}.zip"
-    )
+    return {
+        "project_name": safe_name,
+        "folder": str(output_dir),
+        "files": files,
+        "total_files": len(files),
+    }
 
 
 # ─── SERVE FRONTEND ───

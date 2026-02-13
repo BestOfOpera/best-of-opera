@@ -1164,8 +1164,9 @@ function renderProdDetail(){
       <h3>Post Text
         <span class="check-icon ${p.post_approved?'approved':'pending'}" style="margin-left:8px">${p.post_approved?'&#10003;':'?'}</span>
       </h3>
-      <textarea id="prod-post-text" rows="10" oninput="updatePostCount()">${escHtml(p.post_text||'')}</textarea>
+      <textarea id="prod-post-text" rows="14" oninput="updatePostCount()">${escHtml(p.post_text||'')}</textarea>
       <div class="char-count" id="post-char-count">${(p.post_text||'').length} chars (ideal: 1400-1900)</div>
+      <div style="font-size:10px;color:#B5AFA8;margin-top:2px">Estrutura: Abertura → Storytelling → Creditos Artista → Creditos Musica → CTA Sensorial → 4 Hashtags</div>
       <div class="action-row">
         <button class="btn-secondary" onclick="prodSavePost(${p.id})">Salvar</button>
         <button class="btn-secondary" onclick="prodRegeneratePost(${p.id})" style="border-color:#C9A84C60;color:#8B6914">Regerar Post</button>

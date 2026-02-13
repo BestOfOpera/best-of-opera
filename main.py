@@ -937,33 +937,39 @@ Return a JSON object with exactly 3 keys:
    - Each segment 2-5 seconds long
    - English language
 
-2. "post" — Instagram post text (1400-1900 characters total). MUST follow this EXACT structure with 5 blocks separated by blank lines:
+2. "post" — Instagram post text. MUST follow this EXACT structure. Each block is separated by a blank line (\\n\\n). Follow it FAITHFULLY:
 
-   BLOCK 1 — HOOK (1 line):
-   An emoji followed by a powerful, attention-grabbing one-liner about the performance. Must stop the scroll.
+   BLOCK 1 — ABERTURA (1 line):
+   A playful icon + Artist/Performer name + Song/Aria name.
+   Format: "[icon] [Artist] — [Song]"
+   Example: "✨ Maria Callas — Casta Diva"
 
-   BLOCK 2 — ARTIST CONTEXT (2-3 lines):
-   Who is this artist and why they matter in the world of opera/classical music. Their legacy, achievements, or unique qualities.
+   BLOCK 2 — STORYTELLING (4-8 lines):
+   Narrative text with a playful, curious, and storytelling tone. Write about the mystery, the magic, the secrets behind this performance or piece. Use icons like 🏰, 🕊️, ✨ naturally within the text. The tone should be engaging, like telling a fascinating story to a friend who loves music. Include interesting historical or cultural details woven into the narrative.
 
-   BLOCK 3 — PERFORMANCE DESCRIPTION (3-4 lines):
-   Vivid, emotional storytelling about THIS specific performance. What happens, the emotion, the goosebumps moment. Make the reader feel like they are there.
+   BLOCK 3 — CREDITS (artist info, formatted exactly like this):
+   [icon] [Singer full name] [country flag emoji of singer's nationality]
+   [Voice type: Soprano/Tenor/Baritone/Mezzo-soprano/etc.]
+   [Date of birth in format: DD/MM/YYYY]
 
-   BLOCK 4 — CULTURAL NOTE (1-2 lines):
-   A historical insight, fun fact, or cultural significance about the piece, the venue, or the moment.
+   BLOCK 4 — CREDITS (song info, formatted exactly like this):
+   [icon] [Song/Aria name] — [Album or Opera it belongs to]
+   [Composer full name]
+   [Composition date or year]
 
-   BLOCK 5 — ENGAGEMENT + CTA (2-3 lines):
-   An engaging question that invites comments.
-   Then: "Follow @bestofopera for the most beautiful moments in opera and classical music"
+   BLOCK 5 — CTA SENSORIAL (1 line):
+   A binary question designed to generate quick comments. Must be simple, sensory, emotional.
+   Examples: "🔥 or ❄️?", "🌹 or 🥀?", "😭 or 😍?"
 
-   BLOCK 6 — HASHTAGS (1 block):
-   15-20 relevant hashtags including #opera #classicalmusic #bestofopera and artist/song specific ones.
+   BLOCK 6 — HASHTAGS (1 line):
+   Exactly 4 relevant hashtags. No more, no less.
+   Example: "#opera #mariacallas #castadiva #belcanto"
 
    Rules:
    - Each block separated by a blank line (\\n\\n)
-   - Use emojis sparingly (1-2 per block max)
-   - Mix English with occasional Italian musical terms (bel canto, aria, etc.)
-   - Tone: wonder, beauty, emotion, grandeur
-   - MUST be 1400-1900 characters total
+   - The post MUST have exactly these 6 blocks in this order
+   - Research and include accurate biographical data (birth date, nationality, voice type, composer, opera name)
+   - Total: 1400-1900 characters
 
 3. "seo" — YouTube SEO object with:
    - "title": YouTube title (50-70 chars, artist + song + emotional hook)

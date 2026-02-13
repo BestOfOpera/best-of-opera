@@ -31,47 +31,20 @@ GOOGLE_TRANSLATE_API_KEY = os.getenv("GOOGLE_TRANSLATE_API_KEY", "")
 PRODUCTION_DIR = Path("/tmp/best-of-opera-production")
 PRODUCTION_DIR.mkdir(parents=True, exist_ok=True)
 
-# Find ffmpeg/ffprobe binaries (nixpacks installs to /nix/store)
-def _find_bin(name):
-    # 1. Try PATH first
-    found = shutil.which(name)
-    if found:
-        return found
-    # 2. Search common nix paths
-    import glob as _glob
-    for pattern in [
-        f"/nix/store/*/bin/{name}",
-        f"/nix/store/*-{name}-*/bin/{name}",
-        f"/nix/store/*ffmpeg*/bin/{name}",
-        f"/usr/bin/{name}",
-        f"/usr/local/bin/{name}",
-    ]:
-        matches = sorted(_glob.glob(pattern))
-        if matches:
-            return matches[-1]  # use latest
-    # 3. Try subprocess locate
-    try:
-        result = subprocess.run(["find", "/nix/store", "-name", name, "-type", "f"],
-                                capture_output=True, text=True, timeout=10)
-        lines = [l.strip() for l in result.stdout.strip().split("\n") if l.strip() and "/bin/" in l]
-        if lines:
-            return lines[0]
-    except Exception:
-        pass
-    return name  # fallback
+# Find ffmpeg binary — use imageio-ffmpeg (ships static ffmpeg binary)
+try:
+    import imageio_ffmpeg
+    FFMPEG_BIN = imageio_ffmpeg.get_ffmpeg_exe()
+except ImportError:
+    FFMPEG_BIN = shutil.which("ffmpeg") or "ffmpeg"
 
-FFMPEG_BIN = _find_bin("ffmpeg")
-FFPROBE_BIN = _find_bin("ffprobe")
+# ffprobe lives next to ffmpeg in imageio-ffmpeg
+_ffmpeg_dir = os.path.dirname(FFMPEG_BIN)
+_ffprobe_candidate = os.path.join(_ffmpeg_dir, "ffprobe")
+FFPROBE_BIN = _ffprobe_candidate if os.path.isfile(_ffprobe_candidate) else (shutil.which("ffprobe") or "ffprobe")
+
 print(f"🎬 FFmpeg: {FFMPEG_BIN}")
 print(f"🎬 FFprobe: {FFPROBE_BIN}")
-
-# Debug: log PATH and test ffmpeg at startup
-print(f"🔍 PATH: {os.environ.get('PATH', 'NOT SET')}")
-try:
-    _test = subprocess.run([FFMPEG_BIN, "-version"], capture_output=True, text=True, timeout=5)
-    print(f"✅ FFmpeg test: {_test.stdout.split(chr(10))[0] if _test.returncode == 0 else 'FAILED: ' + _test.stderr[:100]}")
-except Exception as _e:
-    print(f"❌ FFmpeg test failed: {_e}")
 
 # ─── ANTI-SPAM (appended to all YouTube searches) ───
 ANTI_SPAM = "-karaoke -piano -tutorial -lesson -reaction -review -lyrics -chords"
@@ -789,18 +762,20 @@ async def prod_create_project(
         content = await video.read()
         f.write(content)
 
-    # Get duration via ffprobe
+    # Get duration via ffmpeg (no ffprobe needed)
     duration = None
     try:
         result = subprocess.run(
-            [FFPROBE_BIN, "-v", "quiet", "-show_entries", "format=duration",
-             "-of", "csv=p=0", str(video_path)],
-            capture_output=True, text=True, timeout=15
+            [FFMPEG_BIN, "-i", str(video_path), "-f", "null", "-"],
+            capture_output=True, text=True, timeout=30
         )
-        if result.returncode == 0 and result.stdout.strip():
-            duration = float(result.stdout.strip())
+        # Parse duration from stderr: "Duration: HH:MM:SS.ms"
+        dur_match = re.search(r"Duration:\s*(\d+):(\d+):(\d+)\.(\d+)", result.stderr)
+        if dur_match:
+            h, m, s, ms = dur_match.groups()
+            duration = int(h)*3600 + int(m)*60 + int(s) + int(ms)/100
     except Exception as e:
-        print(f"⚠️ ffprobe error: {e}")
+        print(f"⚠️ duration detection error: {e}")
 
     pid = db.create_production_project(
         artist=artist, song=song, hook=hook or None,

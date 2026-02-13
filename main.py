@@ -31,6 +31,23 @@ GOOGLE_TRANSLATE_API_KEY = os.getenv("GOOGLE_TRANSLATE_API_KEY", "")
 PRODUCTION_DIR = Path("/tmp/best-of-opera-production")
 PRODUCTION_DIR.mkdir(parents=True, exist_ok=True)
 
+# Find ffmpeg/ffprobe binaries (nixpacks may install to non-standard paths)
+def _find_bin(name):
+    found = shutil.which(name)
+    if found:
+        return found
+    for p in [f"/nix/store/*/{name}", f"/usr/bin/{name}", f"/usr/local/bin/{name}"]:
+        import glob as _glob
+        matches = _glob.glob(p)
+        if matches:
+            return matches[0]
+    return name  # fallback to bare name
+
+FFMPEG_BIN = _find_bin("ffmpeg")
+FFPROBE_BIN = _find_bin("ffprobe")
+print(f"🎬 FFmpeg: {FFMPEG_BIN}")
+print(f"🎬 FFprobe: {FFPROBE_BIN}")
+
 # ─── ANTI-SPAM (appended to all YouTube searches) ───
 ANTI_SPAM = "-karaoke -piano -tutorial -lesson -reaction -review -lyrics -chords"
 
@@ -732,7 +749,7 @@ async def prod_create_project(
     duration = None
     try:
         result = subprocess.run(
-            ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
+            [FFPROBE_BIN, "-v", "quiet", "-show_entries", "format=duration",
              "-of", "csv=p=0", str(video_path)],
             capture_output=True, text=True, timeout=15
         )
@@ -803,7 +820,7 @@ async def _bg_transcribe(project_id: int):
         audio_path = video_path.parent / "audio.mp3"
 
         # Extract audio with FFmpeg
-        cmd = ["ffmpeg", "-y", "-i", str(video_path), "-vn", "-acodec", "libmp3lame",
+        cmd = [FFMPEG_BIN, "-y", "-i", str(video_path), "-vn", "-acodec", "libmp3lame",
                "-ar", "16000", "-ac", "1", "-b:a", "64k", str(audio_path)]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         if result.returncode != 0:
@@ -1183,7 +1200,7 @@ async def _bg_process(project_id: int):
         cut_end = proj.get("cut_end")
         cut_video_path = output_dir / "video" / f"{safe_name}.mp4"
 
-        ffmpeg_cmd = ["ffmpeg", "-y", "-i", str(video_path)]
+        ffmpeg_cmd = [FFMPEG_BIN, "-y", "-i", str(video_path)]
         if cut_start > 0:
             ffmpeg_cmd += ["-ss", str(cut_start)]
         if cut_end:
@@ -1202,7 +1219,7 @@ async def _bg_process(project_id: int):
         if result.returncode != 0:
             # Fallback: copy without subtitles if subtitle burning fails
             print(f"⚠️ Subtitle burn failed, copying plain video: {result.stderr[:200]}")
-            ffmpeg_fallback = ["ffmpeg", "-y", "-i", str(video_path)]
+            ffmpeg_fallback = [FFMPEG_BIN, "-y", "-i", str(video_path)]
             if cut_start > 0:
                 ffmpeg_fallback += ["-ss", str(cut_start)]
             if cut_end:

@@ -781,7 +781,7 @@ async def prod_create_project(
     pid = db.create_production_project(
         artist=artist, song=song, hook=hook or None,
         cut_start=cut_start, cut_end=cut_end if cut_end > 0 else None,
-        video_filename=safe_name, video_path=str(video_path),
+        video_filename=f"{project_name}.mp4", video_path=str(video_path),
         duration=duration
     )
     return {"id": pid, "status": "uploaded"}

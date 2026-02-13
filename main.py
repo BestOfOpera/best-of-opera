@@ -25,9 +25,9 @@ PLAYLIST_ID = "PLGjiuPqoIDSnphyXIetV6iwm4-3K-fvKk"
 APP_PASSWORD = os.getenv("APP_PASSWORD", "opera2026")
 
 # ─── PRODUCTION MODULE CONFIG ───
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-GOOGLE_TRANSLATE_API_KEY = os.getenv("GOOGLE_TRANSLATE_API_KEY", "")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+GOOGLE_TRANSLATE_API_KEY = os.getenv("GOOGLE_TRANSLATE_API_KEY", "").strip()
 PRODUCTION_DIR = Path("/tmp/best-of-opera-production")
 PRODUCTION_DIR.mkdir(parents=True, exist_ok=True)
 

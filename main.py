@@ -31,17 +31,34 @@ GOOGLE_TRANSLATE_API_KEY = os.getenv("GOOGLE_TRANSLATE_API_KEY", "")
 PRODUCTION_DIR = Path("/tmp/best-of-opera-production")
 PRODUCTION_DIR.mkdir(parents=True, exist_ok=True)
 
-# Find ffmpeg/ffprobe binaries (nixpacks may install to non-standard paths)
+# Find ffmpeg/ffprobe binaries (nixpacks installs to /nix/store)
 def _find_bin(name):
+    # 1. Try PATH first
     found = shutil.which(name)
     if found:
         return found
-    for p in [f"/nix/store/*/{name}", f"/usr/bin/{name}", f"/usr/local/bin/{name}"]:
-        import glob as _glob
-        matches = _glob.glob(p)
+    # 2. Search common nix paths
+    import glob as _glob
+    for pattern in [
+        f"/nix/store/*/bin/{name}",
+        f"/nix/store/*-{name}-*/bin/{name}",
+        f"/nix/store/*ffmpeg*/bin/{name}",
+        f"/usr/bin/{name}",
+        f"/usr/local/bin/{name}",
+    ]:
+        matches = sorted(_glob.glob(pattern))
         if matches:
-            return matches[0]
-    return name  # fallback to bare name
+            return matches[-1]  # use latest
+    # 3. Try subprocess locate
+    try:
+        result = subprocess.run(["find", "/nix/store", "-name", name, "-type", "f"],
+                                capture_output=True, text=True, timeout=10)
+        lines = [l.strip() for l in result.stdout.strip().split("\n") if l.strip() and "/bin/" in l]
+        if lines:
+            return lines[0]
+    except Exception:
+        pass
+    return name  # fallback
 
 FFMPEG_BIN = _find_bin("ffmpeg")
 FFPROBE_BIN = _find_bin("ffprobe")

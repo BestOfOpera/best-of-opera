@@ -3,7 +3,7 @@
 # Uses psycopg 3 (modern driver with bundled libpq binary)
 # ══════════════════════════════════════════════════════════════
 
-import os, io, csv
+import os, io, csv, json
 from datetime import datetime, date
 from typing import List, Dict, Optional
 
@@ -129,6 +129,34 @@ def init_db():
             search_calls INTEGER DEFAULT 0,
             detail_calls INTEGER DEFAULT 0,
             total_points INTEGER DEFAULT 0
+        )
+    """)
+
+    # Table: production_projects (APP2 — Content Production)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS production_projects (
+            id SERIAL PRIMARY KEY,
+            artist TEXT NOT NULL,
+            song TEXT NOT NULL,
+            hook TEXT,
+            cut_start REAL DEFAULT 0,
+            cut_end REAL,
+            video_filename TEXT,
+            video_path TEXT,
+            duration REAL,
+            status TEXT DEFAULT 'uploaded',
+            transcription TEXT,
+            transcription_segments TEXT,
+            overlay_subtitles TEXT,
+            post_text TEXT,
+            youtube_seo TEXT,
+            overlay_approved BOOLEAN DEFAULT FALSE,
+            post_approved BOOLEAN DEFAULT FALSE,
+            translations TEXT,
+            output_path TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            error_message TEXT
         )
     """)
 
@@ -425,3 +453,191 @@ def get_quota_status() -> Dict:
         "search_calls": 0, "detail_calls": 0, "total_points": 0,
         "limit": 10000, "remaining": 10000,
     }
+
+
+# ─── PRODUCTION PROJECTS (APP2) ───
+
+def _parse_json_field(val):
+    if val is None:
+        return None
+    if isinstance(val, (dict, list)):
+        return val
+    try:
+        return json.loads(val)
+    except (json.JSONDecodeError, TypeError):
+        return val
+
+
+def _prod_row_to_dict(r: Dict) -> Dict:
+    return {
+        "id": r["id"],
+        "artist": r["artist"],
+        "song": r["song"],
+        "hook": r.get("hook"),
+        "cut_start": r.get("cut_start", 0),
+        "cut_end": r.get("cut_end"),
+        "video_filename": r.get("video_filename"),
+        "video_path": r.get("video_path"),
+        "duration": r.get("duration"),
+        "status": r.get("status", "uploaded"),
+        "transcription": r.get("transcription"),
+        "transcription_segments": _parse_json_field(r.get("transcription_segments")),
+        "overlay_subtitles": _parse_json_field(r.get("overlay_subtitles")),
+        "post_text": r.get("post_text"),
+        "youtube_seo": _parse_json_field(r.get("youtube_seo")),
+        "overlay_approved": bool(r.get("overlay_approved")),
+        "post_approved": bool(r.get("post_approved")),
+        "translations": _parse_json_field(r.get("translations")),
+        "output_path": r.get("output_path"),
+        "created_at": r["created_at"].isoformat() if r.get("created_at") else None,
+        "updated_at": r["updated_at"].isoformat() if r.get("updated_at") else None,
+        "error_message": r.get("error_message"),
+    }
+
+
+def create_production_project(artist: str, song: str, hook: str = None,
+                              cut_start: float = 0, cut_end: float = None,
+                              video_filename: str = None, video_path: str = None,
+                              duration: float = None) -> int:
+    conn = _conn()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO production_projects
+        (artist, song, hook, cut_start, cut_end, video_filename, video_path, duration)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id
+    """, (artist, song, hook, cut_start, cut_end, video_filename, video_path, duration))
+    pid = c.fetchone()[0]
+    conn.commit()
+    conn.close()
+    return pid
+
+
+def get_production_projects() -> List[Dict]:
+    conn = _conn()
+    c = conn.cursor(row_factory=dict_row)
+    c.execute("""
+        SELECT id, artist, song, status, video_filename, duration,
+               overlay_approved, post_approved, created_at, updated_at, error_message
+        FROM production_projects ORDER BY created_at DESC
+    """)
+    rows = c.fetchall()
+    conn.close()
+    return [{
+        "id": r["id"], "artist": r["artist"], "song": r["song"],
+        "status": r["status"], "video_filename": r.get("video_filename"),
+        "duration": r.get("duration"),
+        "overlay_approved": bool(r.get("overlay_approved")),
+        "post_approved": bool(r.get("post_approved")),
+        "created_at": r["created_at"].isoformat() if r.get("created_at") else None,
+        "updated_at": r["updated_at"].isoformat() if r.get("updated_at") else None,
+        "error_message": r.get("error_message"),
+    } for r in rows]
+
+
+def get_production_project(project_id: int) -> Optional[Dict]:
+    conn = _conn()
+    c = conn.cursor(row_factory=dict_row)
+    c.execute("SELECT * FROM production_projects WHERE id = %s", (project_id,))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return _prod_row_to_dict(row)
+
+
+def update_production_status(project_id: int, status: str, error_message: str = None):
+    conn = _conn()
+    c = conn.cursor()
+    c.execute("""
+        UPDATE production_projects
+        SET status = %s, error_message = %s, updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
+    """, (status, error_message, project_id))
+    conn.commit()
+    conn.close()
+
+
+def update_production_transcription(project_id: int, transcription: str, segments: list = None):
+    conn = _conn()
+    c = conn.cursor()
+    seg_json = json.dumps(segments) if segments else None
+    c.execute("""
+        UPDATE production_projects
+        SET transcription = %s, transcription_segments = %s,
+            status = 'transcribed', updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
+    """, (transcription, seg_json, project_id))
+    conn.commit()
+    conn.close()
+
+
+def update_production_content(project_id: int, overlay: list, post_text: str, seo: dict):
+    conn = _conn()
+    c = conn.cursor()
+    c.execute("""
+        UPDATE production_projects
+        SET overlay_subtitles = %s, post_text = %s, youtube_seo = %s,
+            status = 'generated', updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
+    """, (json.dumps(overlay), post_text, json.dumps(seo), project_id))
+    conn.commit()
+    conn.close()
+
+
+def update_production_overlay(project_id: int, overlay: list, approved: bool):
+    conn = _conn()
+    c = conn.cursor()
+    c.execute("""
+        UPDATE production_projects
+        SET overlay_subtitles = %s, overlay_approved = %s, updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
+    """, (json.dumps(overlay), approved, project_id))
+    conn.commit()
+    conn.close()
+
+
+def update_production_post(project_id: int, post_text: str, approved: bool):
+    conn = _conn()
+    c = conn.cursor()
+    c.execute("""
+        UPDATE production_projects
+        SET post_text = %s, post_approved = %s, updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
+    """, (post_text, approved, project_id))
+    conn.commit()
+    conn.close()
+
+
+def update_production_translations(project_id: int, translations: dict):
+    conn = _conn()
+    c = conn.cursor()
+    c.execute("""
+        UPDATE production_projects
+        SET translations = %s, status = 'translated', updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
+    """, (json.dumps(translations), project_id))
+    conn.commit()
+    conn.close()
+
+
+def update_production_output(project_id: int, output_path: str):
+    conn = _conn()
+    c = conn.cursor()
+    c.execute("""
+        UPDATE production_projects
+        SET output_path = %s, status = 'completed', updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
+    """, (output_path, project_id))
+    conn.commit()
+    conn.close()
+
+
+def delete_production_project(project_id: int) -> bool:
+    conn = _conn()
+    c = conn.cursor()
+    c.execute("DELETE FROM production_projects WHERE id = %s", (project_id,))
+    deleted = c.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted

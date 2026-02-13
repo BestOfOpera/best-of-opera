@@ -15,6 +15,10 @@ a { text-decoration:none; color:#8B6914; }
 .logo-icon { width:30px; height:30px; border-radius:7px; background:linear-gradient(135deg,#C9A84C,#8B6914); display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; font-size:14px; }
 .logo-text { color:#8B6914; font-size:13px; font-weight:700; }
 .logo-sub { color:#8B8680; font-size:9px; letter-spacing:0.6px; }
+.header-tabs { display:flex; gap:4px; }
+.header-tab { padding:6px 16px; border-radius:8px; border:1px solid #E8E0D4; background:#fff; color:#8B8680; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+.header-tab.active { background:linear-gradient(135deg,#C9A84C,#8B6914); color:#fff; border-color:#C9A84C; }
+.header-tab:hover:not(.active) { border-color:#C9A84C60; color:#8B6914; }
 .quota-bar { display:flex; align-items:center; gap:8px; }
 .quota-info { font-size:10px; color:#8B8680; text-align:right; }
 .quota-info strong { color:#2D2A26; }
@@ -169,8 +173,113 @@ a { text-decoration:none; color:#8B6914; }
 .login-box button:disabled { opacity:0.5; }
 .login-err { color:#D4483B; font-size:12px; margin-top:8px; min-height:18px; }
 
+/* ═══ PRODUCTION MODULE STYLES ═══ */
+
+/* Production project cards */
+.prod-container { max-width:900px; margin:0 auto; padding:0 18px 40px; }
+.prod-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
+.prod-card { background:#FFFFFF; border-radius:12px; border:1px solid #E8E0D4; padding:14px; cursor:pointer; transition:all 0.2s; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+.prod-card:hover { border-color:#C9A84C60; transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+.prod-card-title { font-size:14px; font-weight:600; color:#2D2A26; margin-bottom:2px; }
+.prod-card-sub { font-size:11px; color:#8B8680; margin-bottom:8px; }
+.prod-card-footer { display:flex; justify-content:space-between; align-items:center; }
+.prod-card-date { font-size:10px; color:#B5AFA8; }
+
+/* Status pills */
+.status-pill { display:inline-block; padding:2px 10px; border-radius:12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+.status-uploaded { background:#E8E0D4; color:#8B8680; }
+.status-transcribing, .status-generating, .status-translating, .status-processing { background:#C9A84C20; color:#8B6914; }
+.status-transcribed { background:#3B6DD418; color:#3B6DD4; }
+.status-generated { background:#7B4DD418; color:#7B4DD4; }
+.status-translated { background:#2BAAA018; color:#2BAAA0; }
+.status-completed { background:#3B8C5C18; color:#3B8C5C; }
+.status-error { background:#D4483B15; color:#D4483B; }
+
+/* Production form */
+.prod-form { max-width:500px; margin:0 auto; background:#FFFFFF; border-radius:14px; border:1px solid #E8E0D4; padding:24px; }
+.prod-form h2 { font-size:18px; color:#8B6914; margin-bottom:16px; }
+.form-group { margin-bottom:14px; }
+.form-group label { display:block; font-size:11px; font-weight:600; color:#8B8680; margin-bottom:4px; }
+.form-group input, .form-group select { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #E8E0D4; font-size:13px; outline:none; background:#FDF6EE; }
+.form-group input:focus { border-color:#C9A84C; box-shadow:0 0 0 3px #C9A84C20; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.btn-primary { padding:12px 24px; border-radius:10px; border:none; background:linear-gradient(135deg,#C9A84C,#8B6914); color:#fff; font-weight:700; font-size:14px; cursor:pointer; width:100%; }
+.btn-primary:hover { opacity:0.9; }
+.btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
+.btn-secondary { padding:8px 16px; border-radius:8px; border:1px solid #E8E0D4; background:#fff; color:#8B8680; font-size:12px; cursor:pointer; }
+.btn-secondary:hover { border-color:#C9A84C60; }
+.btn-danger { padding:8px 16px; border-radius:8px; border:1px solid #D4483B30; background:#D4483B10; color:#D4483B; font-size:12px; cursor:pointer; font-weight:600; }
+
+/* Step indicator */
+.steps { display:flex; gap:0; margin-bottom:20px; overflow-x:auto; }
+.step { flex:1; text-align:center; padding:8px 4px; position:relative; min-width:80px; }
+.step-num { width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; margin-bottom:3px; border:2px solid #E8E0D4; color:#B5AFA8; background:#fff; }
+.step-label { font-size:9px; color:#B5AFA8; display:block; }
+.step.done .step-num { background:#3B8C5C; border-color:#3B8C5C; color:#fff; }
+.step.done .step-label { color:#3B8C5C; }
+.step.active .step-num { background:linear-gradient(135deg,#C9A84C,#8B6914); border-color:#C9A84C; color:#fff; }
+.step.active .step-label { color:#8B6914; font-weight:700; }
+.step.working .step-num { animation:pulse 1.2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.step::after { content:''; position:absolute; top:19px; left:calc(50% + 14px); right:calc(-50% + 14px); height:2px; background:#E8E0D4; }
+.step:last-child::after { display:none; }
+.step.done::after { background:#3B8C5C; }
+
+/* Workflow section */
+.workflow { max-width:700px; margin:0 auto; }
+.wf-section { background:#FFFFFF; border-radius:12px; border:1px solid #E8E0D4; padding:16px; margin-bottom:12px; }
+.wf-section h3 { font-size:14px; color:#8B6914; margin-bottom:10px; }
+.wf-section textarea { width:100%; padding:10px; border-radius:8px; border:1px solid #E8E0D4; font-size:12px; font-family:inherit; resize:vertical; outline:none; min-height:100px; background:#FDF6EE; }
+.wf-section textarea:focus { border-color:#C9A84C; box-shadow:0 0 0 3px #C9A84C20; }
+.char-count { font-size:10px; color:#B5AFA8; text-align:right; margin-top:4px; }
+.char-count.warn { color:#D4483B; }
+
+/* Overlay table */
+.overlay-table { width:100%; border-collapse:collapse; font-size:12px; }
+.overlay-table th { text-align:left; padding:6px 8px; color:#8B8680; font-size:10px; font-weight:600; border-bottom:1px solid #E8E0D4; }
+.overlay-table td { padding:6px 8px; border-bottom:1px solid #F0EBE3; }
+.overlay-table input { width:100%; padding:6px 8px; border-radius:6px; border:1px solid #E8E0D4; font-size:12px; outline:none; }
+.overlay-table input:focus { border-color:#C9A84C; }
+.overlay-table .time-input { width:60px; text-align:center; }
+.overlay-char { font-size:9px; color:#B5AFA8; }
+.overlay-char.over { color:#D4483B; font-weight:700; }
+
+/* SEO preview */
+.seo-preview { background:#FDF6EE; border-radius:8px; padding:12px; }
+.seo-title { font-size:14px; font-weight:600; color:#1a0dab; margin-bottom:4px; }
+.seo-desc { font-size:12px; color:#4d5156; margin-bottom:6px; }
+.seo-tags { display:flex; flex-wrap:wrap; gap:4px; }
+.seo-tag { background:#E8E0D4; padding:2px 8px; border-radius:10px; font-size:10px; color:#8B8680; }
+
+/* Translation tabs */
+.lang-tabs { display:flex; gap:4px; margin-bottom:12px; overflow-x:auto; }
+.lang-tab { padding:5px 12px; border-radius:7px; border:1px solid #E8E0D4; background:#fff; color:#8B8680; font-size:11px; cursor:pointer; white-space:nowrap; }
+.lang-tab.active { background:#C9A84C; color:#fff; border-color:#C9A84C; }
+
+/* Approval checkmarks */
+.approval-row { display:flex; align-items:center; gap:10px; margin-top:10px; }
+.approval-check { display:flex; align-items:center; gap:6px; font-size:12px; }
+.check-icon { width:20px; height:20px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:12px; }
+.check-icon.approved { background:#3B8C5C; color:#fff; }
+.check-icon.pending { background:#E8E0D4; color:#B5AFA8; }
+.btn-approve { padding:6px 14px; border-radius:7px; border:none; background:#3B8C5C; color:#fff; font-weight:600; font-size:11px; cursor:pointer; }
+.btn-approve:hover { opacity:0.9; }
+.btn-approve:disabled { opacity:0.5; cursor:not-allowed; }
+
+/* Action buttons row */
+.action-row { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+
+/* Error box */
+.error-box { background:#D4483B10; border:1px solid #D4483B30; border-radius:8px; padding:10px; margin-bottom:12px; color:#D4483B; font-size:12px; }
+
 @media (max-width:600px) {
   .cats { grid-template-columns:repeat(2,1fr); }
+  .header { flex-wrap:wrap; gap:8px; }
+  .header-tabs { order:3; width:100%; justify-content:center; }
+  .steps { gap:0; }
+  .step { min-width:60px; }
+  .step-label { font-size:8px; }
+  .form-row { grid-template-columns:1fr; }
 }
 </style>
 </head>
@@ -229,15 +338,26 @@ function checkAuth(){
 
 // ─── STATE ───
 let state = {
+  mode: 'curadoria',
   query:"", results:[], loading:false, msg:"", msgType:"",
   detail:null, hidePosted:true, activeCat:null, apiOk:null,
   dlOpen:false, quota:{total_points:0,remaining:10000,limit:10000},
   categories:[], seedInfo:{},
+  // Production state
+  prodProjects: [],
+  prodProject: null,
+  prodView: 'list',
+  prodLoading: false,
+  prodMsg: '',
+  prodMsgType: '',
+  prodLangTab: 'en',
 };
+
+let pollInterval = null;
 
 // ─── HELPERS ───
 function fV(n){return n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?Math.round(n/1e3)+"K":String(n);}
-function fD(s){if(!s)return "\u2014";return Math.floor(s/60)+":"+(s%60).toString().padStart(2,"0");}
+function fD(s){if(!s)return "\u2014";const m=Math.floor(s/60);const sec=Math.floor(s%60);return m+":"+sec.toString().padStart(2,"0");}
 function bdg(s){
   if(s>=80) return {c:"#3B8C5C",bg:"#3B8C5C15"};
   if(s>=60) return {c:"#C9A84C",bg:"#C9A84C15"};
@@ -256,8 +376,13 @@ function pillsHTML(reasons){
   return '<div class="pills">'+reasons.slice(0,4).map(r=>`<span class="pill pill-${r.tag}">${r.label.length>18?r.label.slice(0,16)+'..':r.label} +${r.points}</span>`).join('')+'</div>';
 }
 
+function escHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 // ─── API ───
 async function apiCall(url){const r=await fetch(url);if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}
+async function apiPost(url,body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok){const e=await r.json().catch(()=>({detail:'Error'}));throw new Error(e.detail||`HTTP ${r.status}`);}return r.json();}
+async function apiPut(url,body){const r=await fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok){const e=await r.json().catch(()=>({detail:'Error'}));throw new Error(e.detail||`HTTP ${r.status}`);}return r.json();}
+async function apiDelete(url){const r=await fetch(url,{method:'DELETE'});if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}
 
 async function checkHealth(){
   try{const d=await apiCall(`${API}/api/health`);state.apiOk=d.youtube_api;}catch(e){state.apiOk=false;}
@@ -352,31 +477,283 @@ async function newSeed(catKey){
   render();
 }
 
-// ─── RENDER ───
-function render(){
-  const vis=state.hidePosted?state.results.filter(r=>!r.posted):state.results;
-  const pN=state.results.filter(r=>r.posted).length;
-  let html="";
+// ─── MODE SWITCH ───
+function switchMode(mode){
+  state.mode = mode;
+  stopPolling();
+  if(mode === 'producao'){
+    loadProdProjects();
+  }
+  render();
+}
 
-  // HEADER
+// ══════════════════════════════════════════════════════════
+// PRODUCTION MODULE
+// ══════════════════════════════════════════════════════════
+
+const PROD_STEPS = ['Upload','Transcricao','Geracao','Aprovacao','Traducao','Processamento','Export'];
+const STATUS_TO_STEP = {
+  'uploaded':0, 'transcribing':1, 'transcribed':1,
+  'generating':2, 'generated':2,
+  'translating':4, 'translated':4,
+  'processing':5, 'completed':6, 'error':-1
+};
+const WORKING_STATUSES = ['transcribing','generating','translating','processing'];
+const LANG_NAMES = {en:'English',pt:'Portugues',es:'Espanol',fr:'Francais',de:'Deutsch',it:'Italiano',ja:'Japanese'};
+
+async function loadProdProjects(){
+  try{
+    const data = await apiCall(`${API}/api/prod/projects`);
+    state.prodProjects = data.projects || [];
+  }catch(e){
+    console.error('Failed to load projects:', e);
+  }
+  render();
+}
+
+async function loadProdProject(id){
+  try{
+    state.prodProject = await apiCall(`${API}/api/prod/projects/${id}`);
+    state.prodView = 'detail';
+    state.prodLangTab = 'en';
+    startPollingIfNeeded();
+  }catch(e){
+    state.prodMsg = `Erro: ${e.message}`;
+    state.prodMsgType = 'error';
+  }
+  render();
+}
+
+async function prodUpload(){
+  const form = document.getElementById('prod-upload-form');
+  if(!form) return;
+  const fd = new FormData(form);
+  if(!fd.get('video') || !fd.get('video').name){
+    state.prodMsg = 'Selecione um arquivo MP4';
+    state.prodMsgType = 'error';
+    render();
+    return;
+  }
+  state.prodLoading = true;
+  state.prodMsg = 'Enviando video...';
+  state.prodMsgType = 'loading';
+  render();
+  try{
+    const resp = await fetch(`${API}/api/prod/projects`, {method:'POST', body:fd});
+    if(!resp.ok){const e=await resp.json().catch(()=>({detail:'Upload failed'}));throw new Error(e.detail||'Upload failed');}
+    const data = await resp.json();
+    state.prodLoading = false;
+    state.prodMsg = '';
+    await loadProdProject(data.id);
+  }catch(e){
+    state.prodLoading = false;
+    state.prodMsg = `Erro: ${e.message}`;
+    state.prodMsgType = 'error';
+    render();
+  }
+}
+
+async function prodDelete(id){
+  if(!confirm('Apagar este projeto e todos os arquivos?')) return;
+  try{
+    await apiDelete(`${API}/api/prod/projects/${id}`);
+    state.prodProject = null;
+    state.prodView = 'list';
+    await loadProdProjects();
+  }catch(e){
+    alert(`Erro: ${e.message}`);
+  }
+}
+
+async function prodTranscribe(id){
+  try{
+    await apiPost(`${API}/api/prod/projects/${id}/transcribe`);
+    state.prodProject.status = 'transcribing';
+    startPollingIfNeeded();
+    render();
+  }catch(e){ alert(`Erro: ${e.message}`); }
+}
+
+async function prodSaveTranscription(id){
+  const el = document.getElementById('prod-transcription');
+  if(!el) return;
+  try{
+    await apiPut(`${API}/api/prod/projects/${id}/transcription`, {transcription: el.value});
+    state.prodProject.transcription = el.value;
+    state.prodProject.status = 'transcribed';
+    render();
+  }catch(e){ alert(`Erro: ${e.message}`); }
+}
+
+async function prodGenerate(id){
+  try{
+    await apiPost(`${API}/api/prod/projects/${id}/generate`);
+    state.prodProject.status = 'generating';
+    startPollingIfNeeded();
+    render();
+  }catch(e){ alert(`Erro: ${e.message}`); }
+}
+
+async function prodApproveOverlay(id){
+  const rows = document.querySelectorAll('.overlay-row');
+  const overlay = [];
+  rows.forEach(row => {
+    overlay.push({
+      start: parseFloat(row.querySelector('.ov-start').value)||0,
+      end: parseFloat(row.querySelector('.ov-end').value)||0,
+      text: row.querySelector('.ov-text').value||'',
+    });
+  });
+  try{
+    await apiPut(`${API}/api/prod/projects/${id}/overlay`, {overlay, approved:true});
+    state.prodProject.overlay_subtitles = overlay;
+    state.prodProject.overlay_approved = true;
+    // Reload to check if translation auto-triggered
+    await loadProdProject(id);
+  }catch(e){ alert(`Erro: ${e.message}`); }
+}
+
+async function prodSaveOverlay(id){
+  const rows = document.querySelectorAll('.overlay-row');
+  const overlay = [];
+  rows.forEach(row => {
+    overlay.push({
+      start: parseFloat(row.querySelector('.ov-start').value)||0,
+      end: parseFloat(row.querySelector('.ov-end').value)||0,
+      text: row.querySelector('.ov-text').value||'',
+    });
+  });
+  try{
+    await apiPut(`${API}/api/prod/projects/${id}/overlay`, {overlay, approved:false});
+    state.prodProject.overlay_subtitles = overlay;
+    render();
+  }catch(e){ alert(`Erro: ${e.message}`); }
+}
+
+async function prodApprovePost(id){
+  const el = document.getElementById('prod-post-text');
+  if(!el) return;
+  try{
+    await apiPut(`${API}/api/prod/projects/${id}/post`, {post_text: el.value, approved:true});
+    state.prodProject.post_text = el.value;
+    state.prodProject.post_approved = true;
+    await loadProdProject(id);
+  }catch(e){ alert(`Erro: ${e.message}`); }
+}
+
+async function prodSavePost(id){
+  const el = document.getElementById('prod-post-text');
+  if(!el) return;
+  try{
+    await apiPut(`${API}/api/prod/projects/${id}/post`, {post_text: el.value, approved:false});
+    state.prodProject.post_text = el.value;
+    render();
+  }catch(e){ alert(`Erro: ${e.message}`); }
+}
+
+async function prodTranslate(id){
+  try{
+    await apiPost(`${API}/api/prod/projects/${id}/translate`);
+    state.prodProject.status = 'translating';
+    startPollingIfNeeded();
+    render();
+  }catch(e){ alert(`Erro: ${e.message}`); }
+}
+
+async function prodProcess(id){
+  try{
+    await apiPost(`${API}/api/prod/projects/${id}/process`);
+    state.prodProject.status = 'processing';
+    startPollingIfNeeded();
+    render();
+  }catch(e){ alert(`Erro: ${e.message}`); }
+}
+
+function prodExport(id){
+  window.open(`${API}/api/prod/projects/${id}/export`, '_blank');
+}
+
+// ─── POLLING ───
+function startPollingIfNeeded(){
+  stopPolling();
+  if(!state.prodProject) return;
+  if(WORKING_STATUSES.includes(state.prodProject.status)){
+    pollInterval = setInterval(async ()=>{
+      try{
+        const s = await apiCall(`${API}/api/prod/projects/${state.prodProject.id}/status`);
+        if(s.status !== state.prodProject.status){
+          await loadProdProject(state.prodProject.id);
+        }
+      }catch(e){ console.error('Poll error:', e); }
+    }, 3000);
+  }
+}
+
+function stopPolling(){
+  if(pollInterval){ clearInterval(pollInterval); pollInterval=null; }
+}
+
+function getStepState(stepIdx, proj){
+  const s = proj.status;
+  const currentStep = STATUS_TO_STEP[s];
+  if(s === 'error') return currentStep;
+  // Step 3 (Aprovacao) is special
+  if(stepIdx === 3){
+    if(proj.overlay_approved && proj.post_approved) return 'done';
+    if(currentStep >= 2 && (proj.overlay_subtitles || proj.post_text)) return 'active';
+    return 'future';
+  }
+  if(stepIdx < currentStep || (stepIdx === currentStep && !WORKING_STATUSES.includes(s) && currentStep > 0)) return 'done';
+  if(stepIdx === 0) return 'done'; // upload always done
+  if(stepIdx === currentStep && WORKING_STATUSES.includes(s)) return 'working';
+  if(stepIdx === currentStep) return 'active';
+  // For completed status
+  if(s === 'completed' && stepIdx <= 6) return 'done';
+  return 'future';
+}
+
+
+// ═══════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════
+function render(){
+  if(state.mode === 'producao'){
+    renderProducao();
+  } else {
+    renderCuradoria();
+  }
+}
+
+function renderHeader(){
   const qp=state.quota.total_points||0, ql=state.quota.limit||10000, qr=state.quota.remaining||10000;
   const qPct=Math.min(100,Math.round(qp/ql*100));
   const qColor=qPct>80?'#D4483B':qPct>50?'#C9A84C':'#3B8C5C';
-  html+=`<div class="header">
-    <div class="logo"><div class="logo-icon">B</div><div><div class="logo-text">Best of Opera</div><div class="logo-sub">MOTOR V7 \u00b7 SEED ROTATION</div></div></div>
+  return `<div class="header">
+    <div class="logo"><div class="logo-icon">B</div><div><div class="logo-text">Best of Opera</div><div class="logo-sub">MOTOR V7</div></div></div>
+    <div class="header-tabs">
+      <button class="header-tab ${state.mode==='curadoria'?'active':''}" onclick="switchMode('curadoria')">Curadoria</button>
+      <button class="header-tab ${state.mode==='producao'?'active':''}" onclick="switchMode('producao')">Producao</button>
+    </div>
     <div class="quota-bar">
       <div class="quota-info"><strong>${qp.toLocaleString()}</strong> / ${ql.toLocaleString()} pts<br><span style="color:${qColor}">${qr.toLocaleString()} restantes</span></div>
       <div class="quota-track"><div class="quota-fill" style="width:${qPct}%;background:${qColor}"></div></div>
       <div class="status ${state.apiOk?'ok':'err'}">${state.apiOk===null?'...':state.apiOk?'API OK':'Offline'}</div>
     </div>
   </div>`;
+}
+
+// ═══ CURADORIA RENDER ═══
+function renderCuradoria(){
+  const vis=state.hidePosted?state.results.filter(r=>!r.posted):state.results;
+  const pN=state.results.filter(r=>r.posted).length;
+  let html = renderHeader();
 
   // HERO
   html+=`<div class="hero"><h1>Motor V7 \u2014 Curadoria Inteligente</h1><p>Seed rotation \u00b7 Scoring V7 \u00b7 Anti-spam \u00b7 Controle de cota</p></div>`;
 
   // SEARCH
   html+=`<div class="search-bar">
-    <input id="searchInput" value="${state.query}" placeholder="Buscar artista, musica, estilo..." onkeydown="if(event.key==='Enter')doSearch(this.value)">
+    <input id="searchInput" value="${escHtml(state.query)}" placeholder="Buscar artista, musica, estilo..." onkeydown="if(event.key==='Enter')doSearch(this.value)">
     <button class="btn-search" onclick="doSearch(document.getElementById('searchInput').value)" ${state.loading?'disabled':''}>
       ${state.loading?'...':'Buscar'}
     </button>
@@ -447,8 +824,8 @@ function render(){
           <div class="ring">${ringSVG(sc,34)}</div>
         </div>
         <div class="card-body">
-          <div class="card-artist">${v.artist||v.channel||''}</div>
-          <div class="card-song">${v.song||v.title||''}</div>
+          <div class="card-artist">${escHtml(v.artist||v.channel||'')}</div>
+          <div class="card-song">${escHtml(v.song||v.title||'')}</div>
           <div class="card-meta">
             <span>&#x1F441; ${fV(v.views)}</span><span>&#x1F4C5; ${v.year}</span>${v.hd?'<span class="hd">HD</span>':''}
           </div>
@@ -472,7 +849,7 @@ function render(){
       const reasons=sc.reasons||[];
       html+=`<div class="modal-overlay" onclick="state.detail=null;render()"><div class="modal" onclick="event.stopPropagation()">
         <div class="modal-header">
-          <div style="flex:1"><div class="modal-artist">${v.artist||v.channel}</div><div class="modal-song">${v.song||v.title}</div>
+          <div style="flex:1"><div class="modal-artist">${escHtml(v.artist||v.channel)}</div><div class="modal-song">${escHtml(v.song||v.title)}</div>
             ${v.url?`<a href="${v.url}" target="_blank" style="color:#D4483B;font-size:11px">Assistir no YouTube \u2197</a>`:''}
             ${v.posted?'<div style="margin-top:4px"><span style="background:#D4483B15;border:1px solid #D4483B30;border-radius:14px;padding:1px 7px;color:#D4483B;font-size:10px;font-weight:600">JA POSTADO</span></div>':''}
           </div>
@@ -482,14 +859,14 @@ function render(){
           <div class="modal-section-title">Score V7 \u2014 ${sc.total||0}/100</div>
           <div style="display:flex;flex-direction:column;gap:4px">
             ${reasons.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;border-radius:6px;background:#fff;border:1px solid #E8E0D4">
-              <span><span class="pill pill-${r.tag}" style="margin-right:4px">${r.tag.replace('_',' ')}</span> ${r.label}</span>
+              <span><span class="pill pill-${r.tag}" style="margin-right:4px">${r.tag.replace('_',' ')}</span> ${escHtml(r.label)}</span>
               <strong style="color:#3B8C5C">+${r.points}</strong>
             </div>`).join('')}
             ${reasons.length===0?'<div style="color:#B5AFA8;font-size:11px;text-align:center;padding:8px">Nenhum match encontrado</div>':''}
           </div>
         </div>
         <div class="modal-section"><div class="modal-grid modal-grid-3">
-          ${[["Views",fV(v.views)],["Ano",v.year],["Duracao",fD(v.duration)],["HD",v.hd?"Sim":"Nao"],["Canal",v.channel||"\u2014"],["Cat.",v.category||"\u2014"]].map(([l,val])=>`<div class="modal-stat"><div class="modal-stat-label">${l}</div><div class="modal-stat-value">${val}</div></div>`).join("")}
+          ${[["Views",fV(v.views)],["Ano",v.year],["Duracao",fD(v.duration)],["HD",v.hd?"Sim":"Nao"],["Canal",v.channel||"\u2014"],["Cat.",v.category||"\u2014"]].map(([l,val])=>`<div class="modal-stat"><div class="modal-stat-label">${l}</div><div class="modal-stat-value">${escHtml(String(val))}</div></div>`).join("")}
         </div></div>
         ${v.url?`<div style="margin-bottom:12px"><div style="color:#8B8680;font-size:9px;margin-bottom:3px">YouTube URL</div><div class="modal-url"><input value="${v.url}" readonly onclick="this.select()"><a href="${v.url}" target="_blank">Abrir</a></div></div>`:''}
         <div class="modal-btns">
@@ -503,6 +880,339 @@ function render(){
   document.getElementById("app").innerHTML=html;
   if(state.dlOpen) loadDownloadHistory();
   updatePlaylistStatus();
+}
+
+
+// ═══ PRODUCAO RENDER ═══
+function renderProducao(){
+  let html = renderHeader();
+  html += `<div class="hero"><h1>Producao de Conteudo</h1><p>Upload \u00b7 Transcricao \u00b7 Geracao \u00b7 Aprovacao \u00b7 Traducao \u00b7 Export</p></div>`;
+
+  if(state.prodMsg){
+    html += `<div class="msg ${state.prodMsgType}">${state.prodMsg}</div>`;
+  }
+  if(state.prodLoading){
+    html += `<div class="loader"><div class="loader-bar"><div class="loader-fill"></div></div></div>`;
+  }
+
+  if(state.prodView === 'new'){
+    html += renderProdForm();
+  } else if(state.prodView === 'detail' && state.prodProject){
+    html += renderProdDetail();
+  } else {
+    html += renderProdList();
+  }
+
+  document.getElementById("app").innerHTML = html;
+}
+
+function renderProdList(){
+  let html = `<div class="prod-container">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="color:#8B8680;font-size:12px">${state.prodProjects.length} projeto${state.prodProjects.length!==1?'s':''}</div>
+      <button class="btn-primary" style="width:auto;padding:10px 20px" onclick="state.prodView='new';state.prodMsg='';render()">+ Novo Projeto</button>
+    </div>`;
+
+  if(state.prodProjects.length === 0){
+    html += `<div class="empty"><div class="empty-icon">&#x1F3AC;</div><div class="empty-text">Nenhum projeto ainda</div><button class="btn-start" onclick="state.prodView='new';render()">Criar primeiro projeto</button></div>`;
+  } else {
+    html += `<div class="prod-cards">`;
+    for(const p of state.prodProjects){
+      const date = p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR') : '';
+      html += `<div class="prod-card" onclick="loadProdProject(${p.id})">
+        <div class="prod-card-title">${escHtml(p.artist)}</div>
+        <div class="prod-card-sub">${escHtml(p.song)}</div>
+        <div class="prod-card-footer">
+          <span class="status-pill status-${p.status}">${p.status}</span>
+          <span class="prod-card-date">${date}</span>
+        </div>
+        ${p.error_message ? `<div style="margin-top:6px;font-size:10px;color:#D4483B;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.error_message)}</div>` : ''}
+      </div>`;
+    }
+    html += `</div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function renderProdForm(){
+  return `<div class="prod-container">
+    <button class="btn-secondary" onclick="state.prodView='list';state.prodMsg='';render()" style="margin-bottom:16px">&larr; Voltar</button>
+    <form class="prod-form" id="prod-upload-form" onsubmit="event.preventDefault();prodUpload()">
+      <h2>Novo Projeto</h2>
+      <div class="form-group">
+        <label>Video MP4</label>
+        <input type="file" name="video" accept="video/mp4,video/*" required>
+      </div>
+      <div class="form-group">
+        <label>Artista</label>
+        <input type="text" name="artist" placeholder="Ex: Luciano Pavarotti" required>
+      </div>
+      <div class="form-group">
+        <label>Musica</label>
+        <input type="text" name="song" placeholder="Ex: Nessun Dorma" required>
+      </div>
+      <div class="form-group">
+        <label>Hook / Contexto (opcional)</label>
+        <input type="text" name="hook" placeholder="Ex: Last live performance before retirement">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Corte inicio (seg)</label>
+          <input type="number" name="cut_start" value="0" step="0.1" min="0">
+        </div>
+        <div class="form-group">
+          <label>Corte fim (seg, 0=tudo)</label>
+          <input type="number" name="cut_end" value="0" step="0.1" min="0">
+        </div>
+      </div>
+      <button type="submit" class="btn-primary" ${state.prodLoading?'disabled':''}>
+        ${state.prodLoading?'Enviando...':'Criar Projeto'}
+      </button>
+    </form>
+  </div>`;
+}
+
+function renderProdDetail(){
+  const p = state.prodProject;
+  if(!p) return '';
+
+  let html = `<div class="prod-container">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <button class="btn-secondary" onclick="stopPolling();state.prodView='list';state.prodProject=null;loadProdProjects()">&larr; Voltar</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="status-pill status-${p.status}">${p.status}</span>
+        <button class="btn-danger" onclick="prodDelete(${p.id})">Apagar</button>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:18px;font-weight:700;color:#2D2A26">${escHtml(p.artist)}</div>
+      <div style="font-size:14px;color:#8B8680">${escHtml(p.song)}</div>
+      ${p.hook?`<div style="font-size:11px;color:#B5AFA8;margin-top:2px">${escHtml(p.hook)}</div>`:''}
+      ${p.duration?`<div style="font-size:11px;color:#B5AFA8;margin-top:2px">Duracao: ${fD(p.duration)}</div>`:''}
+    </div>`;
+
+  // Error message
+  if(p.error_message){
+    html += `<div class="error-box">${escHtml(p.error_message)}</div>`;
+  }
+
+  // Step indicator
+  html += `<div class="steps">`;
+  for(let i=0;i<PROD_STEPS.length;i++){
+    const ss = getStepState(i, p);
+    let cls = 'step';
+    if(ss === 'done') cls += ' done';
+    else if(ss === 'active') cls += ' active';
+    else if(ss === 'working') cls += ' active working';
+    html += `<div class="${cls}">
+      <div class="step-num">${ss==='done'?'&#10003;':i+1}</div>
+      <span class="step-label">${PROD_STEPS[i]}</span>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Workflow content based on current step
+  html += `<div class="workflow">`;
+
+  // ── Step 2: Transcription ──
+  const canTranscribe = ['uploaded','error','transcribed'].includes(p.status);
+  if(p.status === 'uploaded' || p.transcription !== null || canTranscribe){
+    html += `<div class="wf-section">
+      <h3>Transcricao</h3>`;
+    if(p.transcription){
+      html += `<textarea id="prod-transcription" rows="6">${escHtml(p.transcription)}</textarea>
+        <div class="action-row">
+          <button class="btn-secondary" onclick="prodSaveTranscription(${p.id})">Salvar Edicao</button>
+          ${canTranscribe?`<button class="btn-secondary" onclick="prodTranscribe(${p.id})">Re-transcrever</button>`:''}
+        </div>`;
+    } else if(p.status === 'transcribing'){
+      html += `<div class="loader"><div style="color:#C9A84C;font-size:12px;margin-bottom:6px">Transcrevendo com Whisper...</div><div class="loader-bar"><div class="loader-fill"></div></div></div>`;
+    } else {
+      html += `<button class="btn-primary" onclick="prodTranscribe(${p.id})" style="width:auto;padding:10px 24px">Transcrever Video</button>`;
+    }
+    html += `</div>`;
+  }
+
+  // ── Step 3: Content Generation ──
+  const canGenerate = ['transcribed','generated','error'].includes(p.status);
+  if(p.transcription && (canGenerate || p.overlay_subtitles)){
+    html += `<div class="wf-section">
+      <h3>Conteudo Gerado</h3>`;
+    if(p.status === 'generating'){
+      html += `<div class="loader"><div style="color:#C9A84C;font-size:12px;margin-bottom:6px">Gerando conteudo com Claude...</div><div class="loader-bar"><div class="loader-fill"></div></div></div>`;
+    } else if(p.overlay_subtitles || p.post_text){
+      // Show generated content summary
+      html += `<div style="color:#3B8C5C;font-size:12px;margin-bottom:8px">Conteudo gerado com sucesso</div>`;
+      if(canGenerate){
+        html += `<button class="btn-secondary" onclick="prodGenerate(${p.id})">Re-gerar Conteudo</button>`;
+      }
+    } else {
+      html += `<button class="btn-primary" onclick="prodGenerate(${p.id})" style="width:auto;padding:10px 24px" ${!canGenerate?'disabled':''}>Gerar Conteudo</button>`;
+    }
+    html += `</div>`;
+  }
+
+  // ── Step 4: Approval ──
+  if(p.overlay_subtitles){
+    // Overlay editor
+    html += `<div class="wf-section">
+      <h3>Overlay Subtitles
+        <span class="check-icon ${p.overlay_approved?'approved':'pending'}" style="margin-left:8px">${p.overlay_approved?'&#10003;':'?'}</span>
+      </h3>
+      <table class="overlay-table"><thead><tr><th>Inicio</th><th>Fim</th><th>Texto</th><th>Chars</th></tr></thead><tbody>`;
+    const overlay = p.overlay_subtitles || [];
+    for(let i=0;i<overlay.length;i++){
+      const sub = overlay[i];
+      const charCount = (sub.text||'').length;
+      html += `<tr class="overlay-row">
+        <td><input class="time-input ov-start" type="number" step="0.1" value="${sub.start||0}"></td>
+        <td><input class="time-input ov-end" type="number" step="0.1" value="${sub.end||0}"></td>
+        <td><input class="ov-text" value="${escHtml(sub.text||'')}" oninput="updateCharCount(this)"></td>
+        <td><span class="overlay-char ${charCount>70?'over':''}">${charCount}/70</span></td>
+      </tr>`;
+    }
+    html += `</tbody></table>
+      <div class="action-row">
+        <button class="btn-secondary" onclick="prodSaveOverlay(${p.id})">Salvar</button>
+        ${!p.overlay_approved?`<button class="btn-approve" onclick="prodApproveOverlay(${p.id})">Aprovar Overlay</button>`:`<span style="color:#3B8C5C;font-size:12px;font-weight:600">Aprovado</span>`}
+      </div>
+    </div>`;
+
+    // Post editor
+    html += `<div class="wf-section">
+      <h3>Post Text
+        <span class="check-icon ${p.post_approved?'approved':'pending'}" style="margin-left:8px">${p.post_approved?'&#10003;':'?'}</span>
+      </h3>
+      <textarea id="prod-post-text" rows="10" oninput="updatePostCount()">${escHtml(p.post_text||'')}</textarea>
+      <div class="char-count" id="post-char-count">${(p.post_text||'').length} chars (ideal: 1400-1900)</div>
+      <div class="action-row">
+        <button class="btn-secondary" onclick="prodSavePost(${p.id})">Salvar</button>
+        ${!p.post_approved?`<button class="btn-approve" onclick="prodApprovePost(${p.id})">Aprovar Post</button>`:`<span style="color:#3B8C5C;font-size:12px;font-weight:600">Aprovado</span>`}
+      </div>
+    </div>`;
+
+    // SEO preview
+    if(p.youtube_seo){
+      const seo = p.youtube_seo;
+      html += `<div class="wf-section">
+        <h3>YouTube SEO</h3>
+        <div class="seo-preview">
+          <div class="seo-title">${escHtml(seo.title||'')}</div>
+          <div class="seo-desc">${escHtml(seo.description||'')}</div>
+          <div class="seo-tags">${(seo.tags||[]).map(t=>`<span class="seo-tag">${escHtml(t)}</span>`).join('')}</div>
+        </div>
+      </div>`;
+    }
+  }
+
+  // ── Step 5: Translations ──
+  if(p.status === 'translating'){
+    html += `<div class="wf-section">
+      <h3>Traducao</h3>
+      <div class="loader"><div style="color:#C9A84C;font-size:12px;margin-bottom:6px">Traduzindo para 6 idiomas...</div><div class="loader-bar"><div class="loader-fill"></div></div></div>
+    </div>`;
+  } else if(p.translations){
+    html += `<div class="wf-section">
+      <h3>Traducoes</h3>
+      <div class="lang-tabs">`;
+    const langs = Object.keys(p.translations);
+    for(const lang of langs){
+      html += `<button class="lang-tab ${state.prodLangTab===lang?'active':''}" onclick="state.prodLangTab='${lang}';render()">${LANG_NAMES[lang]||lang}</button>`;
+    }
+    html += `</div>`;
+    const tData = p.translations[state.prodLangTab];
+    if(tData){
+      // Overlay preview
+      if(tData.overlay && tData.overlay.length){
+        html += `<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:600;color:#8B8680;margin-bottom:4px">Overlay (${state.prodLangTab})</div>`;
+        for(const sub of tData.overlay){
+          html += `<div style="font-size:11px;color:#2D2A26;padding:3px 0;border-bottom:1px solid #F0EBE3">
+            <span style="color:#B5AFA8;font-size:10px">${sub.start?.toFixed(1)}s-${sub.end?.toFixed(1)}s</span> ${escHtml(sub.text)}
+          </div>`;
+        }
+        html += `</div>`;
+      }
+      // Post preview
+      if(tData.post){
+        html += `<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:600;color:#8B8680;margin-bottom:4px">Post (${state.prodLangTab})</div>
+          <div style="font-size:11px;color:#2D2A26;white-space:pre-wrap;background:#FDF6EE;padding:8px;border-radius:6px;max-height:200px;overflow-y:auto">${escHtml(tData.post)}</div>
+        </div>`;
+      }
+      // SEO preview
+      if(tData.seo && tData.seo.title){
+        html += `<div><div style="font-size:11px;font-weight:600;color:#8B8680;margin-bottom:4px">SEO (${state.prodLangTab})</div>
+          <div class="seo-preview">
+            <div class="seo-title">${escHtml(tData.seo.title)}</div>
+            <div class="seo-desc">${escHtml(tData.seo.description||'')}</div>
+          </div>
+        </div>`;
+      }
+    }
+    html += `</div>`;
+
+    // Manual translate button
+    if(p.overlay_approved && p.post_approved){
+      html += `<div class="action-row" style="justify-content:center;margin-bottom:12px">
+        <button class="btn-secondary" onclick="prodTranslate(${p.id})">Re-traduzir</button>
+      </div>`;
+    }
+  } else if(p.overlay_approved && p.post_approved && !['translating','translated','processing','completed'].includes(p.status)){
+    html += `<div class="wf-section">
+      <h3>Traducao</h3>
+      <button class="btn-primary" onclick="prodTranslate(${p.id})" style="width:auto;padding:10px 24px">Traduzir para 6 idiomas</button>
+    </div>`;
+  }
+
+  // ── Step 6: Processing ──
+  if(p.status === 'processing'){
+    html += `<div class="wf-section">
+      <h3>Processamento</h3>
+      <div class="loader"><div style="color:#C9A84C;font-size:12px;margin-bottom:6px">Gerando SRTs, cortando video, montando ZIP...</div><div class="loader-bar"><div class="loader-fill"></div></div></div>
+    </div>`;
+  } else if(['translated','completed','error'].includes(p.status) && p.translations){
+    html += `<div class="wf-section">
+      <h3>Processamento</h3>`;
+    if(p.status === 'completed' && p.output_path){
+      html += `<div style="color:#3B8C5C;font-size:12px;margin-bottom:8px">Video processado com sucesso!</div>`;
+    }
+    html += `<div class="action-row">
+        <button class="btn-primary" onclick="prodProcess(${p.id})" style="width:auto;padding:10px 24px">${p.status==='completed'?'Re-processar':'Processar Video'}</button>
+      </div>
+    </div>`;
+  }
+
+  // ── Step 7: Export ──
+  if(p.status === 'completed' && p.output_path){
+    html += `<div class="wf-section" style="text-align:center">
+      <h3>Export</h3>
+      <button class="btn-primary" onclick="prodExport(${p.id})" style="width:auto;padding:14px 32px;font-size:16px">Baixar ZIP</button>
+    </div>`;
+  }
+
+  html += `</div></div>`;
+  return html;
+}
+
+// Helper to update char counter for overlay
+function updateCharCount(input){
+  const count = input.value.length;
+  const span = input.closest('tr').querySelector('.overlay-char');
+  if(span){
+    span.textContent = count + '/70';
+    span.className = 'overlay-char' + (count > 70 ? ' over' : '');
+  }
+}
+
+function updatePostCount(){
+  const el = document.getElementById('prod-post-text');
+  const counter = document.getElementById('post-char-count');
+  if(el && counter){
+    const len = el.value.length;
+    counter.textContent = `${len} chars (ideal: 1400-1900)`;
+    counter.className = 'char-count' + (len < 1400 || len > 1900 ? ' warn' : '');
+  }
 }
 
 function showDetail(i){state.detail=i;render();}
@@ -579,7 +1289,7 @@ async function loadDownloadHistory(){
     let h=`<div style="display:flex;justify-content:flex-end;margin-bottom:6px"><a class="btn-export" href="${API}/api/downloads/export">Export CSV</a></div>`;
     for(const d of downloads){
       const date=d.downloaded_at?new Date(d.downloaded_at).toLocaleDateString('pt-BR'):'\u2014';
-      h+=`<div class="dl-item"><span class="dl-item-name">${d.filename||d.video_id}</span><span class="dl-item-date">${date}</span>${d.youtube_url?`<a href="${d.youtube_url}" target="_blank">YT</a>`:''}</div>`;
+      h+=`<div class="dl-item"><span class="dl-item-name">${escHtml(d.filename||d.video_id)}</span><span class="dl-item-date">${date}</span>${d.youtube_url?`<a href="${d.youtube_url}" target="_blank">YT</a>`:''}</div>`;
     }
     container.innerHTML=h;
   }catch(e){
